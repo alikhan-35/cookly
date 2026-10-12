@@ -1,0 +1,47 @@
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { displayIngredient, normalizeIngredient } from '../utils/ingredients';
+import { trackEvent } from '../utils/analytics';
+
+interface PantryState {
+  ingredients: string[];
+  source: 'manual' | 'fridge';
+  maxTime: number | null;
+  addIngredient: (name: string) => string | null;
+  removeIngredient: (name: string) => void;
+  clearIngredients: () => void;
+  replaceIngredients: (names: string[], source?: 'manual' | 'fridge') => void;
+  setMaxTime: (value: number | null) => void;
+}
+const PantryContext = createContext<PantryState | null>(null);
+
+/** Search is deliberately memory-only. The fridge owns persistent inventory. */
+export function PantryProvider({ children }: { children: ReactNode }) {
+  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [source, setSource] = useState<'manual' | 'fridge'>('manual');
+  const [maxTime, setMaxTime] = useState<number | null>(null);
+  function addIngredient(value: string) {
+    const name = displayIngredient(value);
+    if (!name || !/[а-яa-z]/i.test(name)) return 'Введите название продукта, например «Курица».';
+    if (name.length > 40) return 'Название продукта должно быть короче 40 символов.';
+    if (ingredients.some(item => normalizeIngredient(item) === normalizeIngredient(name))) return 'Этот продукт уже в вашем списке.';
+    if (ingredients.length >= 40) return 'Можно добавить до 40 продуктов. Удалите ненужные.';
+    setIngredients(previous => [...previous, name]);
+    setSource('manual');
+    trackEvent('ingredient_added', { ingredient: name });
+    return null;
+  }
+  return <PantryContext.Provider value={{ ingredients, source, maxTime, addIngredient,
+    removeIngredient: name => { setIngredients(previous => previous.filter(item => item !== name)); setSource('manual'); },
+    clearIngredients: () => { setIngredients([]); setSource('manual'); },
+    replaceIngredients: (names, nextSource = 'manual') => {
+      setIngredients([...new Set(names.map(displayIngredient).filter(Boolean))].slice(0, 100));
+      setSource(nextSource);
+    },
+    setMaxTime: value => setMaxTime(value !== null && [20,30,45,60].includes(value) ? value : null),
+  }}>{children}</PantryContext.Provider>;
+}
+export function usePantry() {
+  const context = useContext(PantryContext);
+  if (!context) throw new Error('PantryProvider is required');
+  return context;
+}
