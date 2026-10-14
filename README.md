@@ -146,31 +146,31 @@ Host в примере подходит для EU Cloud только тогда,
 3. В PostHog откройте **Activity / Live events** и отфильтруйте события по `participant_code = R01`. Проверьте названия, свойства, порядок и отсутствие дублей после обновления страницы.
 4. Отдельно включите QA-режим и убедитесь, что события с `qa_mode = true` остаются в локальной истории, но не появляются в PostHog.
 
-Наличие SDK и успешная сборка подтверждают только техническую интеграцию. Реальный Project API Key для этой проверки не предоставлялся, получение события в PostHog не подтверждалось, поэтому production-сбор данных сейчас имеет статус **не проверен**. Он считается проверенным только после сборки сайта с реальными значениями проекта и появления хотя бы одного тестового события в PostHog.
+Production-сборка GitHub Pages настроена с реальным Project API Key и ingestion host PostHog US. После деплоя PostHog получил события `page_view` и `fridge_opened` из опубликованного сайта. Эти события помечены как автоматический трафик, поэтому проверка реального участника и остальных сценариев остается открытой; панель исключает автоматический трафик.
 
 ### Dashboard `COOKLY — MVP Analytics`
 
-Dashboard автоматически не создавался, поскольку доступ к реальному PostHog-проекту не предоставлен. Создайте защищенный dashboard `COOKLY — MVP Analytics` внутри PostHog; публичная страница статистики в Cookly не нужна. Добавьте dashboard-фильтры `qa_mode != true`, диапазон дат и, для метрик исследования, `participant_code is set`. Все PostHog-показатели относятся только к посетителям, которые разрешили аналитику; их нельзя интерпретировать как полный счетчик всего трафика сайта.
+Защищенная панель [COOKLY — MVP Analytics](https://us.posthog.com/project/663130/dashboard/2210946) создана в PostHog и не опубликована для общего доступа. Она содержит 16 карточек по всем 13 показателям ниже и отдельную разбивку посещений по разделам. Каждая карточка исключает автоматический трафик; QA-события клиент не отправляет. Период по умолчанию — 30 дней. Показатели относятся только к посетителям, разрешившим аналитику, и не являются полным счетчиком всего трафика сайта.
 
 | № | Insight | Настройка |
 | --- | --- | --- |
-| 1 | Unique visitors | Trend по `page_view`, агрегация unique users; добавьте breakdown по шаблону `path`, чтобы сравнивать посещение отдельных разделов без сырых URL |
+| 1 | Unique visitors | SQL: уникальные `distinct_id` с `page_view` за 30 дней; отдельная карточка разбивает посещения по безопасному шаблону `path` |
 | 2 | Sessions | Trend по `page_view`, агрегация unique sessions |
-| 3 | Visits by device | `page_view` с breakdown по `device_type` |
-| 4 | Traffic sources | `page_view` с breakdown по `referrer_host` |
-| 5 | Recommendations requested | Trend `recommendations_requested`, total и unique users |
-| 6 | Recipes opened | Trend `recipe_opened`, total и unique users; при необходимости breakdown по `recipe_category` |
-| 7 | Cooking sessions started | Trend `cooking_started`, unique users |
-| 8 | Cooking sessions completed | Trend `cooking_completed`, unique users и funnel `cooking_started → cooking_completed` |
-| 9 | Positive and negative feedback | Две серии `recipe_liked` и `recipe_disliked`, breakdown по `recipe_category` |
-| 10 | Fridge usage | Trend `fridge_used_for_search` и funnel `fridge_opened → fridge_item_added → fridge_used_for_search` |
-| 11 | Mock store interest | Trend `mock_store_opened` и funnel `mock_store_opened → mock_checkout_completed` |
-| 12 | Recipe selection time | `recipe_opened`: median и p90 свойства `elapsed_time_ms`; дополнительный фильтр `elapsed_time_ms <= 300000` |
-| 13 | MVP success rate | Funnel `recommendations_requested → recipe_opened → recipe_usefulness_answered`, окно 5 минут; на `recipe_opened` фильтр `elapsed_time_ms <= 300000`, на ответе `answer = yes` |
+| 3 | Visits by device | Уникальные сессии `page_view` с breakdown по `device_type` |
+| 4 | Traffic sources | Уникальные сессии `page_view` с breakdown по `referrer_host` |
+| 5 | Recommendations requested | Количество `recommendations_requested` |
+| 6 | Recipes opened | Количество `recipe_opened` |
+| 7 | Cooking sessions started | Количество `cooking_started` |
+| 8 | Cooking sessions completed | Количество `cooking_completed` |
+| 9 | Positive and negative feedback | Две серии: `recipe_liked` и `recipe_disliked` |
+| 10 | Fridge usage | Открытия `fridge_opened` и поиски `fridge_used_for_search` |
+| 11 | Mock store interest | Открытия `mock_store_opened` и завершения `mock_checkout_completed` |
+| 12 | Recipe selection time | Медиана и p90 свойства `recipe_opened.elapsed_time_ms` |
+| 13 | MVP success rate | SQL/HogQL по уникальному `participant_code`: ответ `yes` с `elapsed_time_ms <= 300000` / все участники с `recommendations_requested`; цель ≥70% |
 
-Funnel № 13 удобен для визуальной диагностики, но основной KPI нужно считать по уникальному `participant_code`, а не по cookie или PostHog distinct ID. Создайте SQL/HogQL insight: знаменатель — количество уникальных `participant_code` с `recommendations_requested`; числитель — количество уникальных `participant_code` с `recipe_usefulness_answered`, где `answer = yes` и `elapsed_time_ms <= 300000`; результат — `числитель / знаменатель × 100`. Примените тот же период и фильтр `qa_mode != true`. Это сохраняет корректный счет, даже если тест проводят в общем браузере с последовательной сменой кодов.
+Основной KPI уже настроен в панели по уникальным кодам участников, а не по cookie или PostHog distinct ID. Его знаменатель — коды с `recommendations_requested`, числитель — среди них коды с `recipe_usefulness_answered`, `answer = yes` и `elapsed_time_ms <= 300000`. Если участников пока нет, показатель пустой, а не нулевой. Это сохраняет корректный счет, даже если тест проводят в общем браузере с последовательной сменой кодов.
 
-Для funnel задайте окно 5 минут, фильтры `participant_code is set` и `qa_mode != true`, а затем проверьте breakdown по `participant_code`: каждый код должен соответствовать одному участнику. KPI считается успешным при значении не ниже 70%. Для диагностики добавьте соседний funnel без фильтра `answer = yes` и breakdown `recipe_usefulness_answered` по `answer`; он показывает, на каком шаге участники прекращают сценарий, но не заменяет основной показатель.
+Дополнительная воронка в панели показывает `recommendations_requested → recipe_opened → recipe_usefulness_answered` с фильтром `participant_code is set`, `answer = yes` и выбором рецепта за 5 минут. Окно воронки — 30 дней, чтобы поздний ответ после готовки не исключался. Она показывает потери по шагам, но может объединять разные коды в одном браузере; для решения о достижении порога 70% используйте только основной SQL-показатель.
 
 ## Публикация в GitHub Pages
 
@@ -208,13 +208,13 @@ git push -u origin main
 
 В файле workflow уже заданы разрешения `contents: read`, `pages: write`, `id-token: write`, окружение `github-pages` и последовательное выполнение публикаций через `concurrency`. Если организация ограничивает GitHub Actions, ее политика должна разрешать используемые официальные actions. Если первый запуск произошел до включения Pages, после настройки повторите его.
 
-Для PostHog откройте **Settings → Secrets and variables → Actions → Variables** и создайте repository variables:
+Для PostHog в репозитории уже заданы следующие repository variables (**Settings → Secrets and variables → Actions → Variables**):
 
 | Variable | Значение |
 | --- | --- |
-| `VITE_ANALYTICS_ENABLED` | `true` после готовности к сбору данных |
-| `VITE_POSTHOG_KEY` | Project API Key проекта |
-| `VITE_POSTHOG_HOST` | ingestion host проекта, например `https://eu.i.posthog.com` |
+| `VITE_ANALYTICS_ENABLED` | `true` |
+| `VITE_POSTHOG_KEY` | публичный Project API Key проекта |
+| `VITE_POSTHOG_HOST` | `https://us.i.posthog.com` |
 
 Это именно build-time variables: Vite встраивает их в клиентский bundle. Поэтому сюда нельзя помещать Personal API Key или серверный секрет. Если variables отсутствуют, workflow подставляет `VITE_ANALYTICS_ENABLED=false`, а публикация продолжается без PostHog. Если аналитика включена, но ключ или host не заполнен либо ключ не начинается с `phc_`, этап валидации остановит сборку с понятной ошибкой вместо публикации небезопасно или частично настроенного трекера.
 
@@ -270,4 +270,4 @@ git push
 - Избранные рецепты с локальным сохранением.
 - Пересчет количества ингредиентов при изменении числа порций.
 - Расширение проверенного каталога рецептов и словаря названий продуктов.
-- Настройка реального PostHog-проекта, проверка production-события и запуск организованного MVP-теста.
+- Проверка аналитики на реальном участнике и запуск организованного MVP-теста.
