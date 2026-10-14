@@ -9,7 +9,7 @@ import { useAvailableIngredients } from '../hooks/useAvailableIngredients';
 import { getRecipeSteps } from '../utils/recipeSteps';
 import { getEffectiveIngredients } from '../utils/substitutions';
 import { isRecipeAllowed } from '../utils/recommendations';
-import { trackEvent } from '../utils/analytics';
+import { trackEvent } from '../services/analytics';
 import { ingredientQuantity } from '../components/IngredientSubstitution';
 import { NotFoundPage } from './NotFoundPage';
 import { RestrictedRecipe } from './RecipePage';
@@ -28,6 +28,7 @@ export function CookingModePage() {
   const [showSteps, setShowSteps] = useState(false);
   const title = useRef<HTMLHeadingElement>(null);
   const finishTitle = useRef<HTMLHeadingElement>(null);
+  const completionStarted = useRef(false);
   useEffect(() => { setStep(0); setDone([]); setFinished(false); setTimer(null); if (recipe) document.title = `Готовим: ${recipe.name} — Cookly`; }, [recipe]);
   useEffect(() => {
     if (timer === null || timer === 0) return;
@@ -41,14 +42,22 @@ export function CookingModePage() {
   const effective = getEffectiveIngredients(recipe, selections, servings, available, profile);
   const stepTime = extractMinutes(steps[step]);
   function goToStep(next: number, markCurrent = false) {
+    if (!recipe) return;
     const bounded = Math.max(0, Math.min(steps.length - 1, next));
+    if (bounded === step) return;
     if (markCurrent) setDone(current => current.includes(step) ? current : [...current, step]);
     setStep(bounded); setTimer(null);
-    trackEvent('cooking_step_changed', { recipeId: id, step: bounded + 1 });
+    trackEvent('cooking_step_changed', { recipe_id: id, recipe_category: recipe.category, step_number: bounded + 1 });
     title.current?.focus({ preventScroll: true });
   }
-  function completeCooking() { setFinished(true); setTimer(null); setDone(steps.map((_, index) => index)); trackEvent('cooking_completed', { recipeId: id, servings }); }
-  if (finished) return <div className="container cooking-page cooking-complete"><Link className="back-link" to={`/recipe/${id}`}><ArrowLeft size={16}/> Вернуться к рецепту</Link><div className="complete-card"><span className="complete-badge"><Check size={30}/></span><span className="eyebrow"><ChefHat size={15}/> ГОТОВО</span><h1 ref={finishTitle} tabIndex={-1}>Как получилось?</h1><p>{recipe.name} приготовлен. Ваш отзыв поможет Cookly лучше подбирать блюда.</p><div className="feedback-actions"><button aria-pressed={get(id)?.liked === true} className={`feedback-button ${get(id)?.liked === true ? 'selected' : ''}`} onClick={() => rate(id, true)}><ThumbsUp size={19}/> Понравилось</button><button aria-pressed={get(id)?.liked === false} className={`feedback-button ${get(id)?.liked === false ? 'selected negative' : ''}`} onClick={() => rate(id, false)}><ThumbsDown size={19}/> Не понравилось</button></div>{get(id) && <p className="feedback-saved" role="status"><Heart size={14}/> Спасибо, отзыв сохранён</p>}<div className="complete-links"><button className="button primary" onClick={() => { setFinished(false); setStep(0); setDone([]); }}>Посмотреть шаги ещё раз</button><Link className="button secondary" to="/recipes">К рекомендациям</Link></div></div></div>;
+  function completeCooking() {
+    if (!recipe) return;
+    if (completionStarted.current) return;
+    completionStarted.current = true;
+    setFinished(true); setTimer(null); setDone(steps.map((_, index) => index));
+    trackEvent('cooking_completed', { recipe_id: id, recipe_category: recipe.category, cooking_time: recipe.cookingTime, number_of_servings: servings });
+  }
+  if (finished) return <div className="container cooking-page cooking-complete"><Link className="back-link" to={`/recipe/${id}`}><ArrowLeft size={16}/> Вернуться к рецепту</Link><div className="complete-card"><span className="complete-badge"><Check size={30}/></span><span className="eyebrow"><ChefHat size={15}/> ГОТОВО</span><h1 ref={finishTitle} tabIndex={-1}>Как получилось?</h1><p>{recipe.name} приготовлен. Ваш отзыв поможет Cookly лучше подбирать блюда.</p><div className="feedback-actions"><button aria-pressed={get(id)?.liked === true} className={`feedback-button ${get(id)?.liked === true ? 'selected' : ''}`} onClick={() => rate(id, recipe.category, true)}><ThumbsUp size={19}/> Понравилось</button><button aria-pressed={get(id)?.liked === false} className={`feedback-button ${get(id)?.liked === false ? 'selected negative' : ''}`} onClick={() => rate(id, recipe.category, false)}><ThumbsDown size={19}/> Не понравилось</button></div>{get(id) && <p className="feedback-saved" role="status"><Heart size={14}/> Спасибо, отзыв сохранён</p>}<div className="complete-links"><button className="button primary" onClick={() => { completionStarted.current = false; setFinished(false); setStep(0); setDone([]); }}>Посмотреть шаги ещё раз</button><Link className="button secondary" to="/recipes">К рекомендациям</Link></div></div></div>;
   const isLast = step === steps.length - 1;
   return <div className="container cooking-page"><div className="cooking-topbar"><Link className="back-link" to={`/recipe/${id}`}><ArrowLeft size={16}/> Выйти из режима</Link><span className="cooking-title"><ChefHat size={16}/> {recipe.name}</span><span className="cooking-servings">{servings} порц.</span></div>
     <nav className="step-picker" aria-label="Перейти к шагу">{steps.map((_, index) => <button key={index} aria-label={`Перейти к шагу ${index + 1}`} aria-current={index === step ? 'step' : undefined} className={index === step ? 'active' : done.includes(index) ? 'completed' : ''} onClick={() => goToStep(index)}>{done.includes(index) && index !== step ? <Check size={17}/> : index + 1}</button>)}</nav>

@@ -3,10 +3,10 @@ import { ArrowRight, Check, Clock3, Leaf, LoaderCircle, Plus, Search, Sparkles, 
 import { useNavigate } from 'react-router-dom';
 import { usePantry } from '../hooks/usePantry';
 import { normalizeIngredient, popularIngredients } from '../utils/ingredients';
-import { trackEvent } from '../utils/analytics';
+import { trackEvent } from '../services/analytics';
 
 export function IngredientForm() {
-  const { ingredients, maxTime, setMaxTime, addIngredient, removeIngredient, clearIngredients } = usePantry();
+  const { ingredients, source, maxTime, setMaxTime, addIngredient, removeIngredient, clearIngredients } = usePantry();
   const [input, setInput] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,10 @@ export function IngredientForm() {
   function findRecipes() {
     if (!ingredients.length || loading) return;
     setLoading(true);
-    trackEvent('recommendations_requested', { ingredients, maxTime });
+    trackEvent('recommendations_requested', {
+      search_source: source,
+      ...(maxTime ? { cooking_time: maxTime } : {}),
+    });
     timer.current = setTimeout(() => navigate('/recipes'), 800);
   }
   return <section className="pantry-panel" id="pantry" aria-labelledby="pantry-title" aria-busy={loading}>

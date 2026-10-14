@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FridgeItem } from '../types';
-import { trackEvent } from '../utils/analytics';
+import { trackEvent } from '../services/analytics';
 import { cleanFridgeName, FRIDGE_STORAGE_KEY, localDateString, parseFridgeItems, usableFridgeNames, validateFridgeInput, type FridgeInput } from '../utils/fridge';
 
 interface FridgeState {
@@ -65,7 +65,7 @@ export function FridgeProvider({ children }: { children: ReactNode }) {
     if (error) return error;
     const item = { ...cleanInput(input), id: makeId() };
     commit([...currentItems.current, item]);
-    trackEvent('fridge_item_added', { id: item.id, name: item.name, category: item.category });
+    trackEvent('fridge_item_added');
     return null;
   }
   function updateItem(id: string, input: FridgeInput) {
@@ -74,25 +74,24 @@ export function FridgeProvider({ children }: { children: ReactNode }) {
     if (error) return error;
     const item = { ...cleanInput(input), id };
     commit(currentItems.current.map(previous => previous.id === id ? item : previous));
-    trackEvent('fridge_item_updated', { id, name: item.name, category: item.category });
     return null;
   }
   function removeItem(id: string) {
     const item = currentItems.current.find(item => item.id === id);
     if (!item) return;
     commit(currentItems.current.filter(item => item.id !== id));
-    trackEvent('fridge_item_removed', { id, name: item.name });
+    trackEvent('fridge_item_removed');
   }
   function clearFridge() {
     const previous = currentItems.current;
     commit([]);
-    previous.forEach(item => trackEvent('fridge_item_removed', { id: item.id, name: item.name, reason: 'clear' }));
+    previous.forEach(() => trackEvent('fridge_item_removed'));
   }
   function fillDemo() {
     if (currentItems.current.length) return false;
     const demo = demoItems.map(item => ({ ...item, id: makeId() }));
     commit(demo);
-    demo.forEach(item => trackEvent('fridge_item_added', { id: item.id, name: item.name, category: item.category, source: 'demo' }));
+    demo.forEach(() => trackEvent('fridge_item_added'));
     return true;
   }
   return <FridgeContext.Provider value={{ items, usableNames, addItem, updateItem, removeItem, clearFridge, fillDemo }}>{children}</FridgeContext.Provider>;

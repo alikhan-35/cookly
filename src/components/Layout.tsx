@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Logo } from './Logo';
 import { ProfileSettings } from './ProfileSettings';
 import { useState } from 'react';
+import { AnalyticsSettingsButton } from './AnalyticsConsentBanner';
 
 export function Layout() {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -20,7 +21,13 @@ export function Layout() {
       <div className="header-actions"><button className="profile-button" onClick={() => setProfileOpen(true)}>Мой профиль</button><Link className="header-cta" to="/#pantry">Начнём готовить <ArrowUpRight size={16}/></Link></div>
     </div></header>
     <main id="main" tabIndex={-1}><Outlet /></main>
-    <footer className="site-footer container"><Link to="/" aria-label="Cookly — на главную"><Logo compact /></Link><span>Меньше раздумий. Больше домашнего.</span><span className="footer-made">С заботой о вашей кухне <Heart size={14}/></span></footer>{profileOpen && <ProfileSettings onClose={() => setProfileOpen(false)}/>} 
+    <footer className="site-footer container">
+      <Link to="/" aria-label="Cookly — на главную"><Logo compact /></Link>
+      <span>Меньше раздумий. Больше домашнего.</span>
+      <AnalyticsSettingsButton />
+      <span className="footer-made">С заботой о вашей кухне <Heart size={14}/></span>
+    </footer>
+    {profileOpen && <ProfileSettings onClose={() => setProfileOpen(false)}/>}
   </>;
 }
 export function Eyebrow({ children }: { children: React.ReactNode }) { return <span className="eyebrow"><Leaf size={14}/>{children}</span>; }

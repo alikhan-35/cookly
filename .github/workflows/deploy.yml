@@ -17,6 +17,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Repository variables are optional. With the default false value the site
+      # builds and deploys without PostHog configuration.
+      VITE_ANALYTICS_ENABLED: ${{ vars.VITE_ANALYTICS_ENABLED || 'false' }}
+      VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
+      VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -29,6 +35,26 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Validate analytics configuration
+        shell: bash
+        run: |
+          if [[ "$VITE_ANALYTICS_ENABLED" != "true" && "$VITE_ANALYTICS_ENABLED" != "false" ]]; then
+            echo "::error::VITE_ANALYTICS_ENABLED must be true or false."
+            exit 1
+          fi
+
+          if [[ "$VITE_ANALYTICS_ENABLED" == "true" && ( -z "$VITE_POSTHOG_KEY" || -z "$VITE_POSTHOG_HOST" ) ]]; then
+            echo "::error::PostHog is enabled, but VITE_POSTHOG_KEY or VITE_POSTHOG_HOST is missing."
+            exit 1
+          fi
+
+          if [[ "$VITE_ANALYTICS_ENABLED" == "true" ]]; then
+            if [[ ! "$VITE_POSTHOG_KEY" =~ ^phc_[[:alnum:]]+$ ]]; then
+              echo "::error::VITE_POSTHOG_KEY must be a public PostHog Project API Key starting with phc_. Never use a Personal API Key in a Vite build."
+              exit 1
+            fi
+          fi
 
       - name: Run tests
         run: npm run test

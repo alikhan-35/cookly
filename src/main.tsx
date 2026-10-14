@@ -11,7 +11,28 @@ import { FridgeProvider } from './hooks/useFridge';
 import { ToastProvider } from './hooks/useToast';
 import { ResetDataProvider } from './hooks/useResetData';
 import { RecipeSessionProvider } from './hooks/useRecipeSession';
+import { AnalyticsConsentBanner } from './components/AnalyticsConsentBanner';
+import { AnalyticsRouteTracker } from './components/AnalyticsRouteTracker';
+import { initializeAnalytics } from './services/analytics';
+
+initializeAnalytics();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <HashRouter><ToastProvider><ResetDataProvider><ProfileProvider><FridgeProvider><PantryProvider><RecipeSessionProvider><App /></RecipeSessionProvider></PantryProvider></FridgeProvider></ProfileProvider></ResetDataProvider></ToastProvider></HashRouter>,
+  <HashRouter>
+    <AnalyticsRouteTracker />
+    <ToastProvider>
+      <ResetDataProvider>
+        <ProfileProvider>
+          <FridgeProvider>
+            <PantryProvider>
+              <RecipeSessionProvider>
+                <App />
+                <AnalyticsConsentBanner />
+              </RecipeSessionProvider>
+            </PantryProvider>
+          </FridgeProvider>
+        </ProfileProvider>
+      </ResetDataProvider>
+    </ToastProvider>
+  </HashRouter>,
 );

@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { displayIngredient, normalizeIngredient } from '../utils/ingredients';
-import { trackEvent } from '../utils/analytics';
 
 interface PantryState {
   ingredients: string[];
@@ -27,7 +26,6 @@ export function PantryProvider({ children }: { children: ReactNode }) {
     if (ingredients.length >= 40) return 'Можно добавить до 40 продуктов. Удалите ненужные.';
     setIngredients(previous => [...previous, name]);
     setSource('manual');
-    trackEvent('ingredient_added', { ingredient: name });
     return null;
   }
   return <PantryContext.Provider value={{ ingredients, source, maxTime, addIngredient,

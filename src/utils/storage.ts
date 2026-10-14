@@ -12,7 +12,10 @@ export function writeJson(key: string, value: unknown) {
 /** Only Cookly owns these keys; unrelated browser data is never touched. */
 export function clearCooklyData(): boolean {
   try {
-    const keys = Object.keys(localStorage).filter(key => key.startsWith('cookly:') || key.startsWith('cookly_'));
+    const retainedPreferences = new Set(['cookly:analytics:consent', 'cookly:analytics:qa']);
+    const keys = Object.keys(localStorage).filter(key =>
+      (key.startsWith('cookly:') || key.startsWith('cookly_')) && !retainedPreferences.has(key),
+    );
     keys.forEach(key => localStorage.removeItem(key));
     return true;
   } catch { return false; }

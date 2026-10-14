@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import type { UserProfile } from '../types';
-import { trackEvent } from '../utils/analytics';
 import { readJson, writeJson } from '../utils/storage';
 
 export const defaultProfile: UserProfile = { familySize: 2, hasChildren: false, dislikes: [], allergies: [], dietary: 'Без ограничений', difficulty: 'Любые' };
@@ -20,7 +19,7 @@ interface ProfileContextValue { profile: UserProfile; updateProfile: (profile: U
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile>(() => validateProfile(readJson<unknown>(KEY, {})));
-  function updateProfile(next: UserProfile) { setProfile(next); writeJson(KEY, next); trackEvent('profile_updated', { familySize: next.familySize, dietary: next.dietary, hasChildren: next.hasChildren }); }
+  function updateProfile(next: UserProfile) { setProfile(next); writeJson(KEY, next); }
   function resetProfile() { updateProfile(defaultProfile); }
   return <ProfileContext.Provider value={{ profile, updateProfile, resetProfile }}>{children}</ProfileContext.Provider>;
 }

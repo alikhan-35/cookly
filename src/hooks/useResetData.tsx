@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearCooklyData } from '../utils/storage';
-import { trackEvent } from '../utils/analytics';
+import { resetAnalyticsForCooklyData } from '../services/analytics';
 import { useToast } from './useToast';
 
 const Context = createContext<(() => void) | null>(null);
@@ -10,8 +10,7 @@ export function ResetDataProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { toast } = useToast();
   function reset() {
-    // The reset action is observable before deletion; the resulting analytics store is empty.
-    trackEvent('test_data_reset');
+    resetAnalyticsForCooklyData();
     const cleared = clearCooklyData();
     navigate('/', { replace: true });
     setGeneration(value => value + 1);

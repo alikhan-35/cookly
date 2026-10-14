@@ -3,18 +3,19 @@ import { ArrowLeft, ArrowRight, Check, Minus, Plus, ShoppingBasket } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import type { Ingredient, Recipe } from '../types';
 import { findMockProduct, money, requiredPacks } from '../data/mockProducts';
-import { trackEvent } from '../utils/analytics';
+import { trackEvent } from '../services/analytics';
 import { Modal } from './Modal';
 
 export function MarketButton({ recipe, missing, compact = false }: { recipe: Recipe; missing: Ingredient[]; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   if (!missing.length) return null;
-  return <><button type="button" className={`button market-button ${compact ? 'market-button-compact' : ''}`} onClick={() => { trackEvent('mock_store_opened', { recipeId: recipe.id, missing: missing.length }); setOpen(true); }}><ShoppingBasket size={17}/> Заказать недостающие продукты</button>{open && <MockStore recipe={recipe} missing={missing} onClose={() => setOpen(false)}/>}</>;
+  return <><button type="button" className={`button market-button ${compact ? 'market-button-compact' : ''}`} onClick={() => { setOpen(true); trackEvent('mock_store_opened', { recipe_id: recipe.id, recipe_category: recipe.category, missing_ingredients_count: missing.length }); }}><ShoppingBasket size={17}/> Заказать недостающие продукты</button>{open && <MockStore recipe={recipe} missing={missing} onClose={() => setOpen(false)}/>}</>;
 }
 
 function MockStore({ recipe, missing, onClose }: { recipe: Recipe; missing: Ingredient[]; onClose: () => void }) {
   const navigate = useNavigate();
   const [stage, setStage] = useState<'products' | 'cart' | 'checkout' | 'success'>('products');
+  const completed = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const [rows, setRows] = useState(() => missing.map(ingredient => {
     const product = findMockProduct(ingredient);
@@ -26,8 +27,13 @@ function MockStore({ recipe, missing, onClose }: { recipe: Recipe; missing: Ingr
   useEffect(() => { if (stage !== 'products') heading.current?.focus(); }, [stage]);
   const titles = { products: 'Продукты для вашего блюда', cart: 'Ваша демо-корзина', checkout: 'Проверим демо-заказ', success: 'Демо-заказ оформлен' };
   function addToCart() {
-    selected.forEach(row => trackEvent('mock_store_item_added', { recipeId: recipe.id, productId: row.product.id, quantity: row.quantity }));
     setStage('cart');
+  }
+  function completeCheckout() {
+    if (completed.current) return;
+    completed.current = true;
+    setStage('success');
+    trackEvent('mock_checkout_completed', { recipe_id: recipe.id, recipe_category: recipe.category, missing_ingredients_count: missing.length });
   }
   return <Modal title="Cookly Market" onClose={onClose} wide>
     <div className="market-demo"><span>ДЕМО-МАГАЗИН</span><p>Тестовые товары и цены. Покупки, оплаты и доставки не будет.</p></div>
@@ -49,8 +55,8 @@ function MockStore({ recipe, missing, onClose }: { recipe: Recipe; missing: Ingr
       <div className="dialog-actions market-actions">
         {stage !== 'products' && <button className="button secondary" onClick={() => setStage(stage === 'cart' ? 'products' : 'cart')}><ArrowLeft size={16}/> Назад</button>}
         {stage === 'products' && <button className="button primary" disabled={!selected.length} onClick={addToCart}>Добавить в корзину <ShoppingBasket size={17}/></button>}
-        {stage === 'cart' && <button className="button primary" onClick={() => { trackEvent('mock_store_checkout_started', { recipeId: recipe.id, total }); setStage('checkout'); }}>Перейти к оформлению <ArrowRight size={17}/></button>}
-        {stage === 'checkout' && <button className="button primary" onClick={() => { trackEvent('mock_store_order_completed', { recipeId: recipe.id, total, demo: true }); setStage('success'); }}>Оформить демо-заказ <Check size={17}/></button>}
+        {stage === 'cart' && <button className="button primary" onClick={() => setStage('checkout')}>Перейти к оформлению <ArrowRight size={17}/></button>}
+        {stage === 'checkout' && <button className="button primary" onClick={completeCheckout}>Оформить демо-заказ <Check size={17}/></button>}
       </div>
     </>}
   </Modal>;

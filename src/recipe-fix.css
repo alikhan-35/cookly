@@ -27,3 +27,12 @@
 @media(max-width:1000px){.recipe-detail-hero{grid-template-columns:minmax(0,1fr) 300px;gap:30px}.recipe-detail-columns{grid-template-columns:280px minmax(0,1fr);gap:30px}.recipe-detail-hero h1{font-size:36px}.start-cooking-card{flex-wrap:wrap}.start-cooking-card .button{width:100%}}
 @media(max-width:760px){.recipe-detail-page{padding-top:20px;padding-bottom:40px}.recipe-detail-hero{grid-template-columns:1fr;gap:22px;padding-top:0;padding-bottom:26px}.recipe-detail-hero h1{font-size:34px}.recipe-detail-art{height:230px}.recipe-detail-columns{grid-template-columns:1fr;gap:28px;padding-top:26px}.recipe-ingredients-panel{padding:18px}.recipe-method-steps{margin-top:15px}.recipe-method-steps li{grid-template-columns:34px minmax(0,1fr);gap:11px;padding:16px 0}.recipe-method-steps p{font-size:12px;line-height:1.75}.step-check{width:32px;height:32px}.start-cooking-card{padding:19px}.start-cooking-card .button{width:100%;justify-content:center}}
 @media(max-width:430px){.recipe-detail-hero h1{font-size:30px}.recipe-detail-art{height:205px}.recipe-method-steps p{font-size:11px}.start-cooking-card{gap:11px}.start-cooking-card h3{font-size:14px}}
+.recipe-usefulness{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:18px;padding:16px 17px;border:1px solid #e4dccd;border-radius:12px;background:#fffaf2}
+.recipe-usefulness>div:first-child{display:grid;gap:5px;min-width:0}
+.recipe-usefulness strong{font-size:12px;line-height:1.55;color:#554136}
+.recipe-usefulness small{font-size:10px;line-height:1.5;color:#806d5a}
+.recipe-usefulness-actions{display:flex;gap:7px;flex-shrink:0}
+.recipe-usefulness-actions button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:70px;min-height:39px;padding:8px 12px;border:1px solid #d9cebe;border-radius:8px;background:#fffdf8;color:#5a4739;font-weight:700;cursor:pointer}
+.recipe-usefulness-actions button:hover{border-color:#91a477;background:#f1f5e9}
+.recipe-usefulness-saved{display:flex;align-items:center;gap:7px;flex-shrink:0;margin:0;color:#62784c;font-size:11px;font-weight:700}
+@media(max-width:680px){.recipe-usefulness{align-items:flex-start;flex-direction:column}.recipe-usefulness-actions{width:100%}.recipe-usefulness-actions button{flex:1}.recipe-usefulness-saved{align-self:flex-start}}

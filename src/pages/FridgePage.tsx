@@ -6,7 +6,7 @@ import { useFridge } from '../hooks/useFridge';
 import { usePantry } from '../hooks/usePantry';
 import { useToast } from '../hooks/useToast';
 import { fridgeCategories, type FridgeCategory, type FridgeItem } from '../types';
-import { trackEvent } from '../utils/analytics';
+import { trackEvent } from '../services/analytics';
 import { expiryDays, fridgeUnits, type FridgeInput } from '../utils/fridge';
 import '../fridge.css';
 
@@ -19,15 +19,15 @@ export function FridgePage() {
   const navigate = useNavigate();
   const [editing, setEditing] = useState<FridgeItem | null | undefined>(undefined);
   const [confirmClear, setConfirmClear] = useState(false);
-  useEffect(() => { document.title = 'Мой холодильник — Cookly'; trackEvent('fridge_opened'); }, []);
+  useEffect(() => { document.title = 'Мой холодильник — Cookly'; }, []);
   const expired = items.length - usableNames.length;
   const soon = items.filter(item => { const days = expiryDays(item.expiresOn); return days !== null && days >= 0 && days <= 3; }).length;
 
   function searchFridge() {
     if (!usableNames.length) return;
     replaceIngredients(usableNames, 'fridge');
-    trackEvent('fridge_used_for_search', { count: usableNames.length, excludedExpired: expired });
-    trackEvent('recommendations_requested', { ingredients: usableNames, source: 'fridge' });
+    trackEvent('fridge_used_for_search', { search_source: 'fridge' });
+    trackEvent('recommendations_requested', { search_source: 'fridge' });
     toast('Продукты из холодильника добавлены в подбор');
     navigate('/recipes');
   }
