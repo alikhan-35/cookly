@@ -33,8 +33,8 @@ export function AnalyticsConsentBanner() {
       <div className="analytics-consent-copy">
         <h2 id={titleId}>Помогите улучшить Cookly</h2>
         <p id={descriptionId}>
-          С вашего разрешения мы будем собирать события об использовании сайта. Мы не отправляем
-          имена, контакты и списки продуктов. Запись экрана выключена.
+          С вашего разрешения мы будем собирать события об использовании сайта и сведения о браузере.
+          Мы не отправляем имена, контакты и списки продуктов. Запись экрана выключена.
         </p>
       </div>
       <div className="analytics-consent-actions">
@@ -129,7 +129,7 @@ export function AnalyticsSettingsButton({ className = '' }: { className?: string
                 />
                 <span>
                   <strong>Разрешить аналитику</strong>
-                  <small>События без контактных данных помогают находить неудобные места в сценариях.</small>
+                  <small>События и сведения о браузере без контактных данных помогают находить неудобные места в сценариях.</small>
                 </span>
               </label>
               <label className={draftConsent === 'denied' ? 'selected' : ''}>

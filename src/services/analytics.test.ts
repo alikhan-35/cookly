@@ -76,7 +76,7 @@ describe('anonymous analytics', () => {
   });
 
   it('keeps only approved event properties before PostHog sends an event', async () => {
-    stubBrowser('https://cookly.test/#/recipe/abc');
+    const { browser } = stubBrowser('https://cookly.test/#/recipe/abc');
     const analytics = await import('./analytics');
     analytics.setAnalyticsConsent('granted');
     await vi.waitFor(() => expect(posthogMock.init).toHaveBeenCalledOnce());
@@ -94,6 +94,7 @@ describe('anonymous analytics', () => {
         number_of_servings: 2,
         distinct_id: 'anon-123',
         $session_id: 'session-123',
+        $raw_user_agent: 'Forged/1.0',
         $current_url: 'https://cookly.test/?email=private@example.com',
         $referrer: 'https://search.test/?q=allergies',
         ingredient_names: ['secret'],
@@ -103,9 +104,19 @@ describe('anonymous analytics', () => {
     expect(sanitized?.properties).toEqual({
       recipe_id: 'abc', recipe_category: 'Ужин', cooking_time: 30,
       number_of_servings: 2, distinct_id: 'anon-123',
-      $session_id: 'session-123', token: 'phc_testproject',
+      $session_id: 'session-123', $raw_user_agent: 'Test browser', token: 'phc_testproject',
     });
     expect(config.before_send({ event: '$autocapture', properties: {} })).toBeNull();
+
+    browser.navigator.userAgent = 'Mozilla/5.0 user@example.com';
+    const suspicious = config.before_send({
+      event: 'recipe_opened',
+      properties: {
+        recipe_id: 'abc', recipe_category: 'Ужин', cooking_time: 30,
+        number_of_servings: 2, $raw_user_agent: 'Forged/1.0',
+      },
+    });
+    expect(suspicious?.properties).not.toHaveProperty('$raw_user_agent');
   });
 
   it('does not send a queued event after the participant changes', async () => {

@@ -557,6 +557,10 @@ async function ensurePostHog(): Promise<PostHog | null> {
             const value = raw[key];
             if (typeof value === 'string' && /^[a-z0-9_-]{1,128}$/i.test(value)) safe[key] = value;
           }
+          // PostHog uses this SDK property to classify automated traffic. Read it from
+          // the current browser, never from a caller-supplied event property.
+          const userAgent = getSafeUserAgent();
+          if (userAgent) safe.$raw_user_agent = userAgent;
           safe.token = import.meta.env.VITE_POSTHOG_KEY!.trim();
           return { ...event, properties: safe };
         },
@@ -664,6 +668,14 @@ function getSanitizedCurrentUrl(): string {
   url.search = '';
   if (url.hash) url.hash = `#${normalizePath(url.hash.slice(1))}`;
   return url.toString();
+}
+
+function getSafeUserAgent(): string | null {
+  if (typeof window === 'undefined') return null;
+  const value = window.navigator?.userAgent;
+  if (typeof value !== 'string' || !value || value.length > 512
+    || /[\u0000-\u001f\u007f@?#]|https?:\/\//i.test(value)) return null;
+  return value;
 }
 
 function normalizePath(value: string): string {
