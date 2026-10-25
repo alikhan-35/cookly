@@ -2,3 +2,4 @@
 @media(max-width:540px){.site-header .header-inner nav a:first-child{display:none}.site-header .header-inner nav a:last-child{display:inline-flex}}
 .profile-mobile-icon{display:none}
 @media(max-width:380px){.site-header .header-inner{gap:8px}.site-header .header-inner nav{gap:9px;font-size:9px}.site-header .header-actions{margin-left:0}.site-header .profile-button{width:32px;height:32px;padding:0;display:grid;place-items:center;flex-shrink:0}.site-header .profile-button>span{display:none}.site-header .profile-button .profile-mobile-icon{display:block}.site-header .logo{font-size:23px;gap:4px}.site-header .logo>svg{width:25px;height:30px}}
+@media(max-width:760px){.site-footer.container{flex-wrap:wrap;row-gap:14px}}
