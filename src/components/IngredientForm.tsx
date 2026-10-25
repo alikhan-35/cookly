@@ -2,11 +2,12 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Check, Clock3, Leaf, LoaderCircle, Plus, Search, Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePantry } from '../hooks/usePantry';
-import { normalizeIngredient, popularIngredients } from '../utils/ingredients';
+import { popularIngredients } from '../utils/ingredients';
+import { pantryProductKey } from '../utils/pantryProducts';
 import { trackEvent } from '../services/analytics';
 
 export function IngredientForm() {
-  const { ingredients, source, maxTime, setMaxTime, addIngredient, removeIngredient, clearIngredients } = usePantry();
+  const { ingredients, rawIngredients, source, maxTime, setMaxTime, addIngredient, removeIngredient, clearIngredients } = usePantry();
   const [input, setInput] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,9 +40,9 @@ export function IngredientForm() {
         <button type="submit" className="add-button" disabled={!input.trim() || loading} aria-label="Добавить продукт"><Plus size={18}/><span>Добавить</span></button>
       </form>
       <p className={`input-feedback ${message ? 'has-error' : ''}`} id="ingredient-feedback" role="status">{message || 'Введите продукт и нажмите Enter или выберите ниже'}</p>
-      {ingredients.length > 0 && <div className="selected-ingredients" aria-label="Ваши продукты">{ingredients.map(name => <span className="ingredient-chip" key={name}><Check size={13}/>{name}<button type="button" onClick={() => removeIngredient(name)} disabled={loading} aria-label={`Удалить ${name}`}><X size={14}/></button></span>)}</div>}
+      {ingredients.length > 0 && <div className="selected-ingredients" aria-label="Ваши продукты">{ingredients.map((name, index) => <span className="ingredient-chip" key={name}><Check size={13}/>{rawIngredients[index] ?? name}<button type="button" onClick={() => removeIngredient(name)} disabled={loading} aria-label={`Удалить ${name}`}><X size={14}/></button></span>)}</div>}
       <div className="popular-label">Часто есть под рукой</div><div className="popular-ingredients">{popularIngredients.map(name => {
-        const selected = ingredients.some(item => normalizeIngredient(item) === normalizeIngredient(name));
+        const selected = ingredients.some(item => pantryProductKey(item) === pantryProductKey(name));
         return <button key={name} type="button" className={`popular-chip ${selected ? 'selected' : ''}`} onClick={() => add(name)} disabled={selected || loading}><span>{selected ? <Check size={13}/> : <Plus size={13}/>}</span>{name}</button>;
       })}</div>
     </div><div className="pantry-options"><label className="time-label" htmlFor="cooking-time"><Clock3 size={17}/> Сколько времени на готовку?</label>
@@ -49,7 +50,7 @@ export function IngredientForm() {
       <button className="button primary find-button" onClick={findRecipes} disabled={!ingredients.length || loading}>{loading ? <><LoaderCircle className="spin" size={19}/> Подбираем блюда…</> : <><Sparkles size={18}/> Что приготовить? <ArrowRight size={18}/></>}</button>
       <span className="cta-hint">{loading ? 'Ищем вкусные совпадения' : ingredients.length ? 'Несколько вкусных идей за один клик' : 'Добавьте хотя бы один продукт'}</span>
     </div></div>
-    <div className="pantry-tip"><Leaf size={15}/><p>Соль, перец, вода и растительное масло уже считаем под рукой.</p><span>Меньше покупок, больше вкуса</span></div>
+    <div className="pantry-tip"><Leaf size={15}/><p>Для точной сверки добавьте также соль, масло и другие продукты, которые есть дома.</p><span>Меньше покупок, больше вкуса</span></div>
   </section>;
 }
 function ShoppingBasketIcon() { return <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m7 9 5-6 5 6M3 9h18l-2 11H5ZM9 12v5m6-5v5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }

@@ -7,7 +7,7 @@ export type DeviceType = 'mobile' | 'tablet' | 'desktop';
 interface RecipeProperties {
   recipe_id: string;
   recipe_category: string;
-  cooking_time: number;
+  cooking_time?: number;
   number_of_servings: number;
 }
 
@@ -120,7 +120,7 @@ const EVENT_SCHEMA = {
       'missing_ingredients_count', 'matched_ingredients_count',
       'recommendation_position', 'search_source', 'elapsed_time_ms',
     ],
-    required: ['recipe_id', 'recipe_category', 'cooking_time', 'number_of_servings'],
+    required: ['recipe_id', 'recipe_category', 'number_of_servings'],
   },
   servings_selected: {
     allowed: ['recipe_id', 'recipe_category', 'number_of_servings'],
@@ -140,7 +140,7 @@ const EVENT_SCHEMA = {
   },
   cooking_started: {
     allowed: ['recipe_id', 'recipe_category', 'cooking_time', 'number_of_servings'],
-    required: ['recipe_id', 'recipe_category', 'cooking_time', 'number_of_servings'],
+    required: ['recipe_id', 'recipe_category', 'number_of_servings'],
   },
   cooking_step_changed: {
     allowed: ['recipe_id', 'recipe_category', 'step_number'],
@@ -148,7 +148,7 @@ const EVENT_SCHEMA = {
   },
   cooking_completed: {
     allowed: ['recipe_id', 'recipe_category', 'cooking_time', 'number_of_servings', 'elapsed_time_ms'],
-    required: ['recipe_id', 'recipe_category', 'cooking_time', 'number_of_servings'],
+    required: ['recipe_id', 'recipe_category', 'number_of_servings'],
   },
   recipe_liked: {
     allowed: ['recipe_id', 'recipe_category'],
@@ -426,7 +426,11 @@ function sanitizeProperty(key: string, value: unknown): SafeAnalyticsValue | und
   if (key === 'device_type') return value === 'mobile' || value === 'tablet' || value === 'desktop' ? value : undefined;
   if (key === 'path') return typeof value === 'string' ? normalizePath(value) : undefined;
   if (key === 'referrer_host') return typeof value === 'string' && isSafeHost(value) ? value.slice(0, 120) : undefined;
-  if (key === 'recipe_id') return typeof value === 'string' && /^[a-z0-9_-]{1,80}$/i.test(value) ? value : undefined;
+  if (key === 'recipe_id') {
+    if (typeof value !== 'string') return undefined;
+    const id = /^racion:[a-z0-9][a-z0-9_-]{0,127}$/i.test(value) ? `racion-${value.slice(7)}`.slice(0, 80) : value;
+    return /^[a-z0-9_-]{1,80}$/i.test(id) ? id : undefined;
+  }
   if (key === 'recipe_category') return safeLabel(value);
   if (isNumericProperty(key)) return safeNumber(key, value);
   return undefined;
@@ -682,7 +686,9 @@ function normalizePath(value: string): string {
   const withoutQuery = value.split(/[?#]/, 1)[0]?.trim() || '/';
   const withLeadingSlash = withoutQuery.startsWith('/') ? withoutQuery : `/${withoutQuery}`;
   const path = withLeadingSlash.replace(/\/{2,}/g, '/').replace(/\/$/, '') || '/';
-  if (['/', '/fridge', '/recipes'].includes(path)) return path;
+  if (['/', '/fridge', '/recipes', '/catalog'].includes(path)) return path;
+  if (/^\/recipe\/racion\/[^/]+$/i.test(path)) return '/recipe/racion/:id';
+  if (/^\/cook\/racion\/[^/]+$/i.test(path)) return '/cook/racion/:id';
   if (/^\/recipe\/[^/]+$/i.test(path)) return '/recipe/:id';
   if (/^\/cook\/[^/]+$/i.test(path)) return '/cook/:id';
   return '/other';

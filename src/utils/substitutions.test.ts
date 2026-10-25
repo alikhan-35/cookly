@@ -6,6 +6,7 @@ import { isIngredientAllowed } from './ingredients';
 
 const cream: Ingredient = { name: 'Сливки', amount: 150, unit: 'мл' };
 const sauce: Recipe = {
+  source: 'local',
   id: 'test-sauce', name: 'Сливочная паста', description: 'Паста в нежном соусе.', cookingTime: 20,
   difficulty: 'Легко', servings: 2, baseServings: 2, nutrition: { calories: 800, protein: 40, fat: 30, carbs: 70 },
   ingredients: [{ name: 'Макароны', amount: 200, unit: 'г', main: true }, cream],

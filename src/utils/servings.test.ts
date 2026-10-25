@@ -6,6 +6,7 @@ import { scaleIngredient, scaleIngredients, scaledIngredients, servingsKey, serv
 
 const onion: Ingredient = { name: 'Лук', amount: 1, unit: 'шт.', main: true };
 const dish: Recipe = {
+  source: 'local',
   id: 'test', name: 'Тест', description: 'Блюдо для проверки порций',
   cookingTime: 20, difficulty: 'Легко', servings: 2, baseServings: 2,
   nutrition: { calories: 600, protein: 40, fat: 20, carbs: 65 },

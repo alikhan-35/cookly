@@ -54,6 +54,21 @@ afterEach(() => {
 });
 
 describe('anonymous analytics', () => {
+  it('tracks source recipes without inventing cooking time and hides recipe slugs and searches in paths', async () => {
+    const { localStorage } = stubBrowser('https://cookly.test/?qa=1#/catalog');
+    const analytics = await import('./analytics');
+    analytics.setAnalyticsConsent('granted');
+    analytics.trackPageView('/catalog?q=private-food', 'catalog');
+    analytics.trackPageView('/recipe/racion/private-slug?allergy=private', 'detail');
+    analytics.trackPageView('/cook/racion/private-slug', 'cooking');
+    analytics.trackEvent('recipe_opened', { recipe_id: 'racion-syrniki', recipe_category: 'Завтрак', number_of_servings: 2 });
+    analytics.trackEvent('recipe_liked', { recipe_id: 'racion:syrniki', recipe_category: 'Завтрак' });
+    const events = JSON.parse(localStorage.getItem(analytics.ANALYTICS_STORAGE_KEY) ?? '[]') as Array<{ name: string; payload: Record<string, unknown> }>;
+    expect(events.map(event => event.payload.path).filter(Boolean)).toEqual(['/catalog', '/recipe/racion/:id', '/cook/racion/:id']);
+    expect(events.at(-2)).toMatchObject({ name: 'recipe_opened', payload: { recipe_id: 'racion-syrniki', number_of_servings: 2 } });
+    expect(events.at(-2)?.payload).not.toHaveProperty('cooking_time');
+    expect(events.at(-1)).toMatchObject({ name: 'recipe_liked', payload: { recipe_id: 'racion-syrniki' } });
+  });
   it('requires consent, removes research params, and deduplicates only the same navigation', async () => {
     const { browser, localStorage } = stubBrowser('https://cookly.test/?participant=R01&qa=1#/fridge?qa=0');
     const analytics = await import('./analytics');

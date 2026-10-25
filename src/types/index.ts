@@ -11,9 +11,15 @@ export interface Nutrition { calories: number; protein: number; fat: number; car
 
 export type FoodVisual = 'pasta' | 'chicken' | 'rice' | 'egg' | 'salad' | 'soup' | 'potato' | 'pancake' | 'stew';
 
-export interface Recipe {
+/** Shared display content; only local recipes have validated Cookly quantities. */
+export interface RecipeContent {
   id: string;
   name: string;
+  steps: string[];
+}
+
+export interface Recipe extends RecipeContent {
+  source: 'local';
   description: string;
   cookingTime: number;
   difficulty: 'Легко' | 'Средне';
@@ -21,11 +27,46 @@ export interface Recipe {
   baseServings: number;
   nutrition: Nutrition;
   ingredients: Ingredient[];
-  steps: string[];
   category: string;
   tags: string[];
   visual: FoodVisual;
 }
+
+/** The provider's measure is kept verbatim: it must not be scaled as a Cookly amount. */
+export interface ExternalIngredient {
+  name: string;
+  measure: string;
+}
+
+export interface ExternalRecipe extends RecipeContent {
+  id: `themealdb:${string}`;
+  source: 'themealdb';
+  externalId: string;
+  originalTitle: string;
+  imageUrl: string | null;
+  imageSourceUrl: string | null;
+  category: string | null;
+  area: string | null;
+  ingredients: ExternalIngredient[];
+  /** Full original text, including its original paragraph breaks. */
+  instructions: string;
+  sourceUrl: string | null;
+  providerUrl: string;
+  videoUrl: string | null;
+  author: string | null;
+  copyright: string | null;
+  creativeCommons: string | null;
+  nutrition: null;
+  servings: null;
+  baseServings: null;
+  cookingTime: null;
+  difficulty: null;
+  titleRu?: string;
+  ingredientsRu?: ExternalIngredient[];
+  instructionsRu?: string;
+}
+
+export type ProviderRecipe = Recipe | ExternalRecipe;
 
 export interface RecipeMatch {
   recipe: Recipe;

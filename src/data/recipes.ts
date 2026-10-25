@@ -2,7 +2,7 @@ import type { Recipe } from '../types';
 
 // Приблизительные КБЖУ указаны для всего блюда на baseServings порций.
 // Расчет учитывает все ингредиенты и все указанное масло; значения зависят от продуктов.
-export const recipes: Recipe[] = [
+const localRecipes: Omit<Recipe, 'source'>[] = [
   {
     id: 'chicken-potato-skillet',
     name: 'Курица с картофелем на сковороде',
@@ -1384,3 +1384,5 @@ export const recipes: Recipe[] = [
     ],
   },
 ];
+
+export const recipes: Recipe[] = localRecipes.map(recipe => ({ ...recipe, source: 'local' }));

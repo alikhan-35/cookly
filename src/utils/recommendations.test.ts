@@ -10,6 +10,7 @@ const ingredient = (name: string, options: Partial<Ingredient> = {}): Ingredient
 
 function recipe(id: string, ingredients: Ingredient[], cookingTime = 20): Recipe {
   return {
+    source: 'local',
     id, name: id, description: 'Тестовый рецепт', cookingTime, difficulty: 'Легко',
     servings: 2, baseServings: 2, nutrition: { calories: 800, protein: 50, fat: 30, carbs: 70 }, ingredients, steps: ['Приготовьте ингредиенты.'], category: 'Обед', tags: [], visual: 'chicken',
   };
