@@ -63,6 +63,20 @@ describe('server-only fridge extraction gateway', () => {
     expect(body.tools).toBeUndefined();
     expect(String(fetcher.mock.calls[0][1].body)).not.toContain('test-server-only-key');
   });
+  it('uses Worker-compatible fetch and refuses redirects without following the API key', async () => {
+    const fetcher = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (init?.redirect === 'error' || Object.hasOwn(init ?? {}, 'credentials')) throw new TypeError('Unsupported Worker fetch options');
+      expect(init?.redirect).toBe('manual');
+      return new Response(null, { status: 307, headers: { Location: 'https://unrelated.example' } });
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const response = await handleAssistantRequest(request(), environment());
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: 'assistant_unavailable' });
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0][1]?.redirect).toBe('manual');
+    expect(Object.hasOwn(fetcher.mock.calls[0][1] ?? {}, 'credentials')).toBe(false);
+  });
   it.each([
     { candidates: [] },
     { candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [{ text: JSON.stringify(extracted) }] } }] },

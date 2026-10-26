@@ -219,7 +219,9 @@ export async function handleAssistantRequest(request: Request, env: AssistantEnv
       body: JSON.stringify({ systemInstruction: { parts: [{ text: instruction }] },
         contents: [{ role: 'user', parts: [{ text }] }],
         generationConfig: { maxOutputTokens: 4_000, responseMimeType: 'application/json', responseSchema: schema } }),
-      signal: controller.signal, redirect: 'error', credentials: 'omit',
+      // Workers supports manual redirects, but throws for redirect: 'error'.
+      // No browser cookies are available here; never forward incoming headers.
+      signal: controller.signal, redirect: 'manual',
     }));
     if (!upstream.ok) {
       // Never relay provider messages, key details or paid-tier suggestions to the browser.
