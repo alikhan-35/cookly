@@ -51,6 +51,19 @@ export function validateFridgeInput(input: FridgeInput, items: FridgeItem[], edi
   return null;
 }
 
+/** Validate the entire selection before the inventory is changed. */
+export function validateFridgeBatch(inputs: FridgeInput[], items: FridgeItem[]): string | null {
+  if (!inputs.length) return 'Выберите хотя бы один продукт для добавления.';
+  if (inputs.length > 40) return 'За один раз можно добавить до 40 продуктов.';
+  const pending = [...items];
+  for (const [index, input] of inputs.entries()) {
+    const error = validateFridgeInput(input, pending);
+    if (error) return `${cleanFridgeName(input.name) || `Продукт ${index + 1}`}: ${error}`;
+    pending.push({ ...input, id: `intake-validation-${index}` });
+  }
+  return null;
+}
+
 /** Recover valid inventory entries without trusting old or manually edited browser data. */
 export function parseFridgeItems(value: unknown): FridgeItem[] {
   if (!Array.isArray(value)) return [];

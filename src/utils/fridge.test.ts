@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { cleanFridgeName, expiryDays, isValidExpiry, localDateString, parseFridgeItems, usableFridgeNames, validateFridgeInput, type FridgeInput } from './fridge';
+import { cleanFridgeName, expiryDays, isValidExpiry, localDateString, parseFridgeItems, usableFridgeNames, validateFridgeInput, validateFridgeBatch, type FridgeInput } from './fridge';
 
 const chicken: FridgeInput = { name: 'Куриное филе', amount: 500, unit: 'г', category: 'Мясо' };
 
 describe('fridge inventory validation', () => {
+  it('validates a bulk addition without changing existing inventory or accepting a partial batch', () => {
+    const existing = [{ ...chicken, id: 'kept' }];
+    const before = structuredClone(existing);
+    expect(validateFridgeBatch([{ name: 'Яйца', unit: 'шт.', amount: 2, category: 'Яйца' }, chicken], existing)).not.toBeNull();
+    expect(existing).toEqual(before);
+    expect(validateFridgeBatch([{ name: 'Яйца', unit: 'шт.', amount: 2, category: 'Яйца' }, { name: 'Яйцо', unit: '', category: 'Яйца' }], [])).not.toBeNull();
+    expect(validateFridgeBatch([{ name: 'Яйца', unit: 'шт.', amount: 2, category: 'Яйца' }], existing)).toBeNull();
+    expect(validateFridgeBatch([], existing)).not.toBeNull();
+    const full = Array.from({ length: 100 }, (_, index) => ({ ...chicken, name: `Продукт ${index}`, id: String(index) }));
+    expect(validateFridgeBatch([{ name: 'Яйца', unit: '', category: 'Яйца' }], full)).not.toBeNull();
+  });
   it('accepts a name-only item while rejecting invalid amounts and canonical duplicates', () => {
     expect(validateFridgeInput({ name: 'Яйца', unit: '', category: 'Другое' }, [])).toBeNull();
     expect(validateFridgeInput({ ...chicken, amount: -1 }, [])).not.toBeNull();

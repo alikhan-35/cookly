@@ -23,6 +23,7 @@ jobs:
       VITE_ANALYTICS_ENABLED: ${{ vars.VITE_ANALYTICS_ENABLED || 'false' }}
       VITE_POSTHOG_KEY: ${{ vars.VITE_POSTHOG_KEY }}
       VITE_POSTHOG_HOST: ${{ vars.VITE_POSTHOG_HOST }}
+      VITE_FRIDGE_ASSISTANT_URL: ${{ vars.VITE_FRIDGE_ASSISTANT_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -63,6 +64,9 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: ${{ github.event.repository.name == format('{0}.github.io', github.repository_owner) && '/' || format('/{0}/', github.event.repository.name) }}
+
+      - name: Build AI gateway artifact
+        run: npm run build:assistant
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

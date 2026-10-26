@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-26",
+  "scope": "Text and browser voice intake with review before atomic inventory save; AI adapter prepared but not activated",
+  "fullSuitePassedBeforeSqlRegression": 458,
+  "additionalSqlRegressionTestsPassed": 5,
+  "speechLifecycleMockTestsPassed": 30,
+  "productionBuildPassed": true,
+  "separateWorkerBuildPassed": true,
+  "buildWarning": "Existing main JavaScript chunk exceeds 500 kB",
+  "browserChecks": {
+    "naturalPhraseParsed": "500 g chicken fillet, 2 eggs, one litre of milk",
+    "existingInventoryNotOverwritten": true,
+    "negativeAmountBlocksConfirmation": true,
+    "editedDecimalCommaAmountPersistedAfterReload": "Milk: 1.5 l",
+    "cancelReviewRetainsOriginalText": true,
+    "mobile320BodyAndClientWidth": 305,
+    "horizontalOverflow": false,
+    "consoleErrorsOrWarnings": false,
+    "realMicrophoneAudioCaptured": false
+  },
+  "aiKeyCreated": false,
+  "aiBackendDeployed": false,
+  "aiProductionEnabled": false,
+  "aiBlocker": "Automatic approval review rejected creating a non-expiring key and requires a direct user confirmation of creation and lifetime",
+  "photoRecognitionImplemented": false,
+  "sqlLimits": "SQLite verified fixed-window caps, concurrent writers and rejection of stale windows"
+}

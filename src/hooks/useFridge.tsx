@@ -1,12 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { FridgeItem } from '../types';
 import { trackEvent } from '../services/analytics';
-import { cleanFridgeName, FRIDGE_STORAGE_KEY, localDateString, parseFridgeItems, usableFridgeNames, validateFridgeInput, type FridgeInput } from '../utils/fridge';
+import { cleanFridgeName, FRIDGE_STORAGE_KEY, localDateString, parseFridgeItems, usableFridgeNames, validateFridgeInput, validateFridgeBatch, type FridgeInput } from '../utils/fridge';
 
 interface FridgeState {
   items: FridgeItem[];
   usableNames: string[];
   addItem: (input: FridgeInput) => string | null;
+  addItems: (inputs: FridgeInput[]) => string | null;
   updateItem: (id: string, input: FridgeInput) => string | null;
   removeItem: (id: string) => void;
   clearFridge: () => void;
@@ -76,6 +77,14 @@ export function FridgeProvider({ children }: { children: ReactNode }) {
     commit(currentItems.current.map(previous => previous.id === id ? item : previous));
     return null;
   }
+  function addItems(inputs: FridgeInput[]) {
+    const error = validateFridgeBatch(inputs, currentItems.current);
+    if (error) return error;
+    const additions = inputs.map(input => ({ ...cleanInput(input), id: makeId() }));
+    commit([...currentItems.current, ...additions]);
+    additions.forEach(() => trackEvent('fridge_item_added'));
+    return null;
+  }
   function removeItem(id: string) {
     const item = currentItems.current.find(item => item.id === id);
     if (!item) return;
@@ -94,7 +103,7 @@ export function FridgeProvider({ children }: { children: ReactNode }) {
     demo.forEach(() => trackEvent('fridge_item_added'));
     return true;
   }
-  return <FridgeContext.Provider value={{ items, usableNames, addItem, updateItem, removeItem, clearFridge, fillDemo }}>{children}</FridgeContext.Provider>;
+  return <FridgeContext.Provider value={{ items, usableNames, addItem, addItems, updateItem, removeItem, clearFridge, fillDemo }}>{children}</FridgeContext.Provider>;
 }
 
 export function useFridge() {
