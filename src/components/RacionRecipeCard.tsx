@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, ArrowUpRight, Check, Clock3, Flame, ImageOff, LoaderCircle, ShieldAlert } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useProfile } from '../hooks/useProfile';
+import { usePantry } from '../hooks/usePantry';
 import { RacionProviderError, type RacionRecipeCard as RecipeCard, type RacionRecipeIngredient } from '../services/recipeProviders/racion';
 import { loadRacionRecipe } from '../services/recipeProviders/racionCache';
 import { matchRacionIngredients } from '../services/recipeProviders/racionMatching';
@@ -32,6 +33,7 @@ export function racionErrorMessage(error: unknown): string {
 
 export function RacionRecipeCard({ recipe, stock: comparisonStock, waitSeconds = 0, onLimit, eagerPhoto = false, knownIngredients }: RacionRecipeCardProps) {
   const { profile } = useProfile();
+  const { assumePantryStaples } = usePantry();
   const location = useLocation();
   const stock = comparisonStock ?? emptyStock;
   const [fetchedIngredients, setFetchedIngredients] = useState<RacionRecipeIngredient[] | null>(null);
@@ -40,7 +42,7 @@ export function RacionRecipeCard({ recipe, stock: comparisonStock, waitSeconds =
   const [error, setError] = useState<unknown>(null);
   const request = useRef<AbortController | null>(null);
   const ingredients = knownIngredients ?? fetchedIngredients;
-  const match = useMemo(() => ingredients ? matchRacionIngredients(ingredients, stock) : null, [ingredients, stock]);
+  const match = useMemo(() => ingredients ? matchRacionIngredients(ingredients, stock, { assumePantryStaples }) : null, [ingredients, stock, assumePantryStaples]);
   // Pass source labels directly: normalization can discard dietary qualifiers.
   const restrictedNames = useMemo(() => ingredients
     ? [...new Set(ingredients.filter(item => !isIngredientAllowed(item.name, profile)).map(item => item.name))]
@@ -84,9 +86,10 @@ export function RacionRecipeCard({ recipe, stock: comparisonStock, waitSeconds =
     </div>
     {restrictedNames.length > 0 && <div className="racion-profile-warning"><ShieldAlert size={17}/><p><strong>Не подходит ограничениям профиля</strong><span>{restrictedNames.join(', ')}</span></p></div>}
     {!ingredients && hasProfileRestrictions && <p className="racion-profile-pending">Ограничения питания ещё не сверены с составом.</p>}
-    {match && stock.length > 0 && <div className={`racion-match ${match.fullyMatched ? 'complete' : ''}`}>
-      <strong>{match.fullyMatched ? <><Check size={15}/> Все ингредиенты есть в наборе</> : `Есть ${match.matchedCount} из ${match.totalCount} ингредиентов`}</strong>
-      <span>Нет в наборе: {match.missing.length}{match.unknown.length > 0 && ` · Уточнить: ${match.unknown.length}`}</span>
+    {match && comparisonStock !== undefined && <div className={`racion-match ${match.fullyMatched ? 'complete' : ''}`}>
+      <strong>{match.fullyMatched ? <><Check size={15}/> Продукты для блюда есть</> : `Есть ${match.matchedCount} из ${match.totalCount} учитываемых продуктов`}</strong>
+      <span>{match.fullyMatched ? `Есть ${match.matchedCount} из ${match.totalCount} учитываемых продуктов` : `Нет в наборе: ${match.missingCount}`}{match.unknownCount > 0 && ` · Уточнить: ${match.unknownCount}`}</span>
+      <span>{assumePantryStaples ? 'Соль, вода, растительное масло и обычные специи не входят в подсчёт.' : 'В подсчёте учитывается весь состав, включая базовые продукты.'}</span>
     </div>}
     <button className="racion-inspect" disabled={loading || (!ingredients && waitSeconds > 0)} aria-expanded={open} onClick={() => void inspect()}>
       {loading ? <><LoaderCircle className="spin" size={15}/> Проверяем состав…</> : ingredients ? open ? 'Скрыть состав' : 'Показать состав' : stock.length ? 'Сверить состав с продуктами' : 'Посмотреть состав'}
@@ -97,9 +100,9 @@ export function RacionRecipeCard({ recipe, stock: comparisonStock, waitSeconds =
       <p>Состав и количества — по данным «Рациона».</p>
       <ul>{ingredients.map((ingredient, index) => <li key={`${ingredient.ingredientId}-${index}`}>
         <div><strong>{ingredient.name}</strong><span>{ingredient.amount === null ? 'Количество не указано' : `${numberFormat.format(ingredient.amount)} ${displayUnit(ingredient.unit)}`.trim()}</span></div>
-        {stock.length > 0 && match && <small className={match.available.includes(ingredient) ? 'available' : match.unknown.includes(ingredient) ? 'unknown' : 'missing'}>{match.available.includes(ingredient) ? 'Есть' : match.unknown.includes(ingredient) ? 'Уточнить' : 'Нет'}</small>}
+        {comparisonStock !== undefined && match && <small className={match.available.includes(ingredient) ? 'available' : match.assumedPantry.includes(ingredient) || match.unknown.includes(ingredient) ? 'unknown' : 'missing'}>{match.available.includes(ingredient) ? 'Есть' : match.assumedPantry.includes(ingredient) ? 'Базовый продукт' : match.unknown.includes(ingredient) ? 'Уточнить' : 'Нет'}</small>}
       </li>)}</ul>
-      <p>Сверяется наличие продуктов. Достаточность количества и возможные замены нужно проверить отдельно.</p>
+      <p>Показан полный состав источника. Сверяется наличие продуктов, без проверки достаточного количества и замен.</p>
     </div>}
     <Link className="racion-recipe-link" to={recipePath} state={returnState}>Посмотреть рецепт <ArrowRight size={16}/></Link>
     <a className="racion-card-source" href={recipe.sourceUrl} target="_blank" rel="noreferrer">Источник: «Рацион» <ArrowUpRight size={11}/></a>

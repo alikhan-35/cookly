@@ -1,5 +1,5 @@
 import { fridgeCategories, type FridgeItem } from '../types';
-import { normalizeIngredient } from './ingredients';
+import { matchingProductKey } from './pantryProducts';
 
 export const FRIDGE_STORAGE_KEY = 'cookly:fridge';
 export const MAX_FRIDGE_ITEMS = 100;
@@ -38,7 +38,7 @@ export function validateFridgeInput(input: FridgeInput, items: FridgeItem[], edi
   const name = cleanFridgeName(input.name);
   if (!name || !/\p{L}/u.test(name)) return 'Введите название продукта, например «Куриное филе».';
   if (name.length > 60) return 'Название должно содержать не больше 60 символов.';
-  if (items.some(item => item.id !== editingId && normalizeIngredient(item.name) === normalizeIngredient(name))) {
+  if (items.some(item => item.id !== editingId && matchingProductKey(item.name) === matchingProductKey(name))) {
     return 'Этот продукт уже есть в холодильнике. Измените его количество в карточке.';
   }
   if (!editingId && items.length >= MAX_FRIDGE_ITEMS) return 'В холодильнике уже 100 продуктов. Удалите ненужные, чтобы добавить новый.';
@@ -62,7 +62,7 @@ export function parseFridgeItems(value: unknown): FridgeItem[] {
     const raw = entry as Record<string, unknown>;
     if (typeof raw.name !== 'string') continue;
     const name = cleanFridgeName(raw.name);
-    const normalized = normalizeIngredient(name);
+    const normalized = matchingProductKey(name);
     if (!name || name.length > 60 || !/\p{L}/u.test(name) || names.has(normalized)) continue;
     let id = typeof raw.id === 'string' && raw.id.length > 0 && raw.id.length <= 100 ? raw.id : `fridge-restored-${index}`;
     while (ids.has(id)) id = `${id}-${index}`;

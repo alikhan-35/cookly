@@ -2,6 +2,8 @@ import { substitutionRules, type SubstitutionContext } from '../data/substitutio
 import type { Ingredient, Recipe, SubstitutionOption, SubstitutionSelections, UserProfile } from '../types';
 import { isIngredientAllowed, isPantryStaple, normalizeIngredient } from './ingredients';
 import { scaleIngredients } from './servings';
+import { matchingProductKey } from './pantryProducts';
+import type { MatchingOptions } from './matchingPolicy';
 
 function contextsFor(recipe: Recipe): Set<SubstitutionContext> {
   const title = `${recipe.name} ${recipe.category}`.toLocaleLowerCase('ru-RU');
@@ -57,12 +59,13 @@ export function getSubstitutionOptions(
   ingredient: Ingredient,
   availableNames: string[],
   profile?: UserProfile,
+  options: MatchingOptions = {},
 ): SubstitutionOption[] {
   if (!Number.isFinite(ingredient.amount) || ingredient.amount <= 0) return [];
   const original = normalizeIngredient(ingredient.name);
   const quantity = sourceQuantity(ingredient);
   const contexts = contextsFor(recipe);
-  const pantry = new Set(availableNames.map(normalizeIngredient).filter(Boolean));
+  const pantry = new Set(availableNames.map(matchingProductKey).filter(Boolean));
   return substitutionRules
     .filter((rule) => rule.original === original && rule.units.includes(quantity.unit) && rule.contexts.some((context) => contexts.has(context)))
     .filter((rule) => rule.id !== 'oil-butter' || !/сильном огне|фритюр/.test(recipe.steps.join(' ').toLocaleLowerCase('ru-RU')))
@@ -80,7 +83,7 @@ export function getSubstitutionOptions(
         label: rule.label,
         ingredients,
         note: rule.note,
-        available: ingredients.every((part) => isPantryStaple(part.name) || pantry.has(normalizeIngredient(part.name))),
+        available: ingredients.every((part) => ((options.assumePantryStaples ?? true) && isPantryStaple(part.name)) || pantry.has(matchingProductKey(part.name))),
       };
     });
 }
@@ -88,7 +91,7 @@ export function getSubstitutionOptions(
 function mergeIngredients(ingredients: Ingredient[]): Ingredient[] {
   const merged = new Map<string, Ingredient>();
   for (const item of ingredients) {
-    const key = `${normalizeIngredient(item.name)}|${normalizeUnit(item.unit)}`;
+    const key = `${matchingProductKey(item.name)}|${normalizeUnit(item.unit)}`;
     const previous = merged.get(key);
     merged.set(key, previous ? {
       ...previous,
@@ -107,6 +110,7 @@ export function getEffectiveIngredients(
   servings: number,
   availableNames: string[],
   profile?: UserProfile,
+  options: MatchingOptions = {},
 ): { ingredients: Ingredient[]; replacements: { original: Ingredient; substitution: SubstitutionOption }[] } {
   const base = Number.isFinite(recipe.baseServings) && recipe.baseServings > 0 ? recipe.baseServings : recipe.servings || 1;
   const requested = Number.isFinite(servings) && servings > 0 ? servings : base;
@@ -116,7 +120,7 @@ export function getEffectiveIngredients(
     const key = normalizeIngredient(original.name);
     const selected = selections && Object.prototype.hasOwnProperty.call(selections, key) ? selections[key] : undefined;
     if (typeof selected !== 'string') continue;
-    const option = getSubstitutionOptions(recipe, original, availableNames, profile).find(({ id }) => id === selected);
+    const option = getSubstitutionOptions(recipe, original, availableNames, profile, options).find(({ id }) => id === selected);
     if (option) candidates.set(key, option);
   }
 

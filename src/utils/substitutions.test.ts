@@ -69,6 +69,23 @@ describe('contextual substitution options', () => {
   it('excludes poultry alternatives in vegetarian profiles', () => {
     expect(getSubstitutionOptions(sauce, { name: 'Куриное филе', amount: 200, unit: 'г' }, ['Индейка'], { ...profile, dietary: 'Вегетарианское' })).toEqual([]);
   });
+
+  it('does not claim a replacement is available from a different cut or yogurt variety', () => {
+    const poultry = getSubstitutionOptions(sauce, { name: 'Индейка', amount: 100, unit: 'г' }, ['Куриное филе']);
+    expect(poultry.find(option => option.id === 'turkey-chicken')?.available).toBe(false);
+    expect(getSubstitutionOptions(sauce, { name: 'Индейка', amount: 100, unit: 'г' }, ['Курица']).find(option => option.id === 'turkey-chicken')?.available).toBe(true);
+    expect(getSubstitutionOptions(sauce, { name: 'Сметана', amount: 100, unit: 'г' }, ['Греческий йогурт']).find(option => option.id === 'sour-cream-yogurt')?.available).toBe(false);
+  });
+
+  it('requires every replacement component when pantry assumptions are disabled', () => {
+    const binding = { ...sauce, name: 'Котлеты', visual: 'chicken' as const };
+    const bread = { name: 'Хлеб', amount: 50, unit: 'г' };
+    const stock = ['Панировочные сухари'];
+    const get = (assumePantryStaples: boolean, names = stock) => getSubstitutionOptions(binding, bread, names, undefined, { assumePantryStaples }).find(option => option.id === 'bread-crumbs')!;
+    expect(get(true).available).toBe(true);
+    expect(get(false).available).toBe(false);
+    expect(get(false, [...stock, 'Вода']).available).toBe(true);
+  });
 });
 
 describe('effective ingredients and selected substitutions', () => {
@@ -108,5 +125,25 @@ describe('effective ingredients and selected substitutions', () => {
     const result = getEffectiveIngredients(sauce, { сливки: 'cream-sour-cream' }, Number.NaN, ['Сметана'], { ...profile, allergies: ['Молоко'] });
     expect(result.replacements).toHaveLength(0);
     expect(result.ingredients).toEqual(sauce.ingredients);
+  });
+
+  it('preserves separate cuts and oil amounts while merging genuine ingredient aliases', () => {
+    const dish = { ...sauce, ingredients: [
+      { name: 'Курица', amount: 100, unit: 'г' }, { name: 'Куриное филе', amount: 150, unit: 'г' },
+      { name: 'Оливковое масло', amount: 10, unit: 'мл' }, { name: 'Подсолнечное масло', amount: 15, unit: 'мл' },
+      { name: 'Картошка', amount: 100, unit: 'г' }, { name: 'Картофель', amount: 50, unit: 'г' },
+    ] };
+    const result = getEffectiveIngredients(dish, {}, 2, []);
+    expect(result.ingredients.map(item => [item.name, item.amount])).toEqual([
+      ['Курица', 100], ['Куриное филе', 150], ['Оливковое масло', 10], ['Подсолнечное масло', 15], ['Картошка', 150],
+    ]);
+  });
+
+  it('forwards strict pantry policy when revalidating saved replacement availability', () => {
+    const dish = { ...sauce, name: 'Котлеты', visual: 'chicken' as const, ingredients: [{ name: 'Хлеб', amount: 50, unit: 'г' }] };
+    const result = getEffectiveIngredients(dish, { хлеб: 'bread-crumbs' }, 2, ['Панировочные сухари'], undefined, { assumePantryStaples: false });
+    expect(result.replacements).toHaveLength(1);
+    expect(result.replacements[0].substitution.available).toBe(false);
+    expect(result.ingredients.map(item => item.name)).toEqual(['Панировочные сухари', 'Вода']);
   });
 });

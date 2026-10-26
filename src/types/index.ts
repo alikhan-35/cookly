@@ -71,6 +71,7 @@ export type ProviderRecipe = Recipe | ExternalRecipe;
 export interface RecipeMatch {
   recipe: Recipe;
   available: Ingredient[];
+  assumedPantry: Ingredient[];
   missing: Ingredient[];
   optional: Ingredient[];
   matchedCount: number;

@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { pantryProductKey, pantryProductName, uniquePantryProducts } from '../utils/pantryProducts';
+import { readJson, writeJson } from '../utils/storage';
 
 interface PantryState {
   ingredients: string[];
@@ -7,6 +8,10 @@ interface PantryState {
   rawIngredients: string[];
   source: 'manual' | 'fridge';
   maxTime: number | null;
+  assumePantryStaples: boolean;
+  setAssumePantryStaples: (value: boolean) => void;
+  catalogStock: string[] | null;
+  setCatalogStock: (names: string[]) => void;
   addIngredient: (name: string) => string | null;
   removeIngredient: (name: string) => void;
   clearIngredients: () => void;
@@ -21,6 +26,12 @@ export function PantryProvider({ children }: { children: ReactNode }) {
   const rawIngredients = ingredients;
   const [source, setSource] = useState<'manual' | 'fridge'>('manual');
   const [maxTime, setMaxTime] = useState<number | null>(null);
+  const [catalogStock, setCatalogStock] = useState<string[] | null>(null);
+  const [assumePantryStaples, setAssumePantryStaples] = useState(() => {
+    const saved = readJson<unknown>('cookly:matching:pantry-staples', true);
+    return typeof saved === 'boolean' ? saved : true;
+  });
+  useEffect(() => { writeJson('cookly:matching:pantry-staples', assumePantryStaples); }, [assumePantryStaples]);
   function addIngredient(value: string) {
     const name = pantryProductName(value);
     if (!name || !/[а-яa-z]/i.test(name)) return 'Введите название продукта, например «Курица».';
@@ -31,7 +42,7 @@ export function PantryProvider({ children }: { children: ReactNode }) {
     setSource('manual');
     return null;
   }
-  return <PantryContext.Provider value={{ ingredients, rawIngredients, source, maxTime, addIngredient,
+  return <PantryContext.Provider value={{ ingredients, rawIngredients, source, maxTime, assumePantryStaples, setAssumePantryStaples, catalogStock, setCatalogStock, addIngredient,
     removeIngredient: name => { setIngredients(previous => previous.filter(item => item !== name)); setSource('manual'); },
     clearIngredients: () => { setIngredients([]); setSource('manual'); },
     replaceIngredients: (names, nextSource = 'manual') => {

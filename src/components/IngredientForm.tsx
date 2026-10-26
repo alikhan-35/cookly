@@ -5,6 +5,7 @@ import { usePantry } from '../hooks/usePantry';
 import { popularIngredients } from '../utils/ingredients';
 import { pantryProductKey } from '../utils/pantryProducts';
 import { trackEvent } from '../services/analytics';
+import { PantryPolicyControl } from './PantryPolicyControl';
 
 export function IngredientForm() {
   const { ingredients, rawIngredients, source, maxTime, setMaxTime, addIngredient, removeIngredient, clearIngredients } = usePantry();
@@ -50,7 +51,8 @@ export function IngredientForm() {
       <button className="button primary find-button" onClick={findRecipes} disabled={!ingredients.length || loading}>{loading ? <><LoaderCircle className="spin" size={19}/> Подбираем блюда…</> : <><Sparkles size={18}/> Что приготовить? <ArrowRight size={18}/></>}</button>
       <span className="cta-hint">{loading ? 'Ищем вкусные совпадения' : ingredients.length ? 'Несколько вкусных идей за один клик' : 'Добавьте хотя бы один продукт'}</span>
     </div></div>
-    <div className="pantry-tip"><Leaf size={15}/><p>Для точной сверки добавьте также соль, масло и другие продукты, которые есть дома.</p><span>Меньше покупок, больше вкуса</span></div>
+    <PantryPolicyControl/>
+    <div className="pantry-tip"><Leaf size={15}/><p>Добавляйте основные продукты. Наличие и количество специй проверьте перед готовкой.</p><span>Меньше покупок, больше вкуса</span></div>
   </section>;
 }
 function ShoppingBasketIcon() { return <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m7 9 5-6 5 6M3 9h18l-2 11H5ZM9 12v5m6-5v5" strokeLinecap="round" strokeLinejoin="round"/></svg>; }

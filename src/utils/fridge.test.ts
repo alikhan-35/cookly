@@ -8,7 +8,8 @@ describe('fridge inventory validation', () => {
     expect(validateFridgeInput({ name: 'Яйца', unit: '', category: 'Другое' }, [])).toBeNull();
     expect(validateFridgeInput({ ...chicken, amount: -1 }, [])).not.toBeNull();
     expect(validateFridgeInput({ ...chicken, amount: Infinity }, [])).not.toBeNull();
-    expect(validateFridgeInput({ ...chicken, name: '  КУРИЦА ' }, [{ ...chicken, id: 'one' }])).not.toBeNull();
+    expect(validateFridgeInput({ ...chicken, name: '  КУРИЦА ' }, [{ ...chicken, id: 'one' }])).toBeNull();
+    expect(validateFridgeInput({ ...chicken, name: 'Куриная грудка' }, [{ ...chicken, id: 'one' }])).not.toBeNull();
     expect(validateFridgeInput(chicken, [{ ...chicken, id: 'one' }], 'one')).toBeNull();
     expect(cleanFridgeName('  куриное   филе ')).toBe('Куриное филе');
   });
@@ -18,13 +19,25 @@ describe('fridge inventory validation', () => {
     const items = parseFridgeItems([
       null, 42, { name: 42 }, { name: '123' },
       { ...chicken, id: 'same', amount: -1, expiresOn: '2026-02-30' },
-      { ...chicken, id: 'duplicate', name: 'Курица' },
+      { ...chicken, id: 'duplicate-alias', name: 'Куриная грудка' },
+      { ...chicken, id: 'whole', name: 'Курица' },
       { name: 'Картофель', id: 'same', category: 'Unknown', unit: '<script>', amount: '20' },
     ]);
-    expect(items).toHaveLength(2);
+    expect(items).toHaveLength(3);
     expect(items[0]).toEqual({ id: 'same', name: 'Куриное филе', unit: 'г', category: 'Мясо' });
-    expect(items[1]).toMatchObject({ name: 'Картофель', unit: '', category: 'Другое' });
-    expect(new Set(items.map(item => item.id)).size).toBe(2);
+    expect(items[1]).toMatchObject({ name: 'Курица' });
+    expect(items[2]).toMatchObject({ name: 'Картофель', unit: '', category: 'Другое' });
+    expect(new Set(items.map(item => item.id)).size).toBe(3);
+  });
+
+  it('retains cuts and different oils after a stored inventory round-trip', () => {
+    const names = ['Курица', 'Куриное филе', 'Филе куриного бедра', 'Оливковое масло', 'Подсолнечное масло', 'Растительное масло'];
+    const stored = names.map((name, index) => ({ ...chicken, name, id: String(index), amount: index + 1 }));
+    const restored = parseFridgeItems(JSON.parse(JSON.stringify(stored)));
+    expect(restored.map(item => item.name)).toEqual(names);
+    expect(restored.map(item => item.amount)).toEqual([1, 2, 3, 4, 5, 6]);
+    for (const name of names) expect(validateFridgeInput({ ...chicken, name }, restored)).not.toBeNull();
+    expect(validateFridgeInput({ ...chicken, name: 'Масло оливковое' }, restored)).not.toBeNull();
   });
 });
 

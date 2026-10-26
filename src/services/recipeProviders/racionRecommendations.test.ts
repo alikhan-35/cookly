@@ -12,10 +12,12 @@ const recipe = (id: string, names: string[], timeMinutes: number | null = 20): R
 });
 
 describe('Racion discovery and confirmed ingredient ranking', () => {
-  it('keeps product cuts and oil varieties in search labels and prioritizes defining foods', () => {
+  it('keeps product cuts in search labels and never searches using only pantry spices or oil', () => {
     expect(racionSearchSeeds(['Лук', 'Соль', 'Куриное филе', 'Рис', 'Оливковое масло', 'Куриное филе']))
-      .toEqual(['Куриное филе', 'Рис', 'Лук', 'Оливковое масло']);
+      .toEqual(['Куриное филе', 'Рис', 'Лук']);
     expect(racionSearchSeeds(['Соль', 'Вода', 'Растительное масло'])).toEqual([]);
+    expect(racionSearchSeeds(['Перец', 'Зира', 'Сушеный базилик', 'Оливковое масло', 'Гарам масала'])).toEqual([]);
+    expect(racionSearchSeeds(['Специи', 'Приправа для плова', 'Карри', 'Гарам-масала', 'Масло'])).toEqual([]);
   });
   it('never turns a title search or whole chicken into an available chicken fillet', () => {
     expect(rankRacionRecipes([recipe('fillet', ['Куриное филе'])], ['Курица'], null, profile)).toEqual([]);
@@ -31,7 +33,7 @@ describe('Racion discovery and confirmed ingredient ranking', () => {
       recipe('unknown', ['Рис', 'Продукт без словаря']),
       recipe('salt_missing', ['Рис', 'Соль']),
       recipe('full', ['Рис']),
-    ], ['Рис'], null, profile);
+    ], ['Рис'], null, profile, { assumePantryStaples: false });
     expect(ranked[0].recipe.id).toBe('full');
     expect(ranked[0].match.fullyMatched).toBe(true);
     expect(ranked.find(item => item.recipe.id === 'unknown')?.match.unknown).toHaveLength(1);
@@ -45,5 +47,41 @@ describe('Racion discovery and confirmed ingredient ranking', () => {
     const meals = [recipe('unknown_time', ['Рис'], null), recipe('long', ['Рис'], 60), recipe('quick', ['Рис'], 20)];
     expect(rankRacionRecipes(meals, ['Рис'], 30, profile).map(item => item.recipe.id)).toEqual(['quick']);
     expect(rankRacionRecipes(meals, ['Рис'], null, profile)).toHaveLength(3);
+  });
+
+  it.each([true, false])('never recommends food from a salt/spice-only match when assumption=%s', assumePantryStaples => {
+    const meals = [recipe('rice', ['Рис', 'Соль']), recipe('spices', ['Перец', 'Вода'])];
+    expect(rankRacionRecipes(meals, ['Соль', 'Перец'], null, profile, { assumePantryStaples })).toEqual([]);
+  });
+
+  it('does not recommend a meat/rice/potato recipe merely because onion and carrot are present', () => {
+    const meals = [
+      recipe('meat', ['Куриное филе', 'Лук', 'Морковь']),
+      recipe('rice', ['Рис', 'Лук', 'Морковь']),
+      recipe('potato', ['Картофель', 'Лук', 'Морковь']),
+      recipe('salad', ['Морковь', 'Лук', 'Огурцы']),
+    ];
+    expect(rankRacionRecipes(meals, ['Лук', 'Морковь'], null, profile).map(item => item.recipe.id)).toEqual(['salad']);
+  });
+
+  it('uses the shared pantry policy for full matches while preserving all source ingredient rows', () => {
+    const meal = recipe('rice', ['Рис', 'Соль', 'Оливковое масло']);
+    const result = rankRacionRecipes([meal], ['Рис'], null, profile);
+    expect(result[0].match).toMatchObject({ fullyMatched: true, totalCount: 1, matchedCount: 1 });
+    expect(result[0].match.assumedPantry).toHaveLength(2);
+    expect(result[0].recipe.ingredients).toBe(meal.ingredients);
+    expect(rankRacionRecipes([meal], ['Рис'], null, profile, { assumePantryStaples: false })[0].match.fullyMatched).toBe(false);
+  });
+
+  it('checks allergies against ignored spices before applying pantry assumptions', () => {
+    const meals = [recipe('garlic', ['Рис', 'Сушеный чеснок']), recipe('plain', ['Рис', 'Соль'])];
+    expect(rankRacionRecipes(meals, ['Рис'], null, { ...profile, allergies: ['Чеснок'] }).map(item => item.recipe.id)).toEqual(['plain']);
+  });
+
+  it('does not let duplicated ingredient positions inflate coverage or ranking', () => {
+    const meals = [recipe('duplicate', ['Рис', 'Рис', 'Куриное филе']), recipe('complete', ['Рис'])];
+    const result = rankRacionRecipes(meals, ['Рис'], null, profile);
+    expect(result.map(item => item.recipe.id)).toEqual(['complete', 'duplicate']);
+    expect(result[1].match).toMatchObject({ matchedCount: 1, totalCount: 2, meaningfulMatchedCount: 1, coverage: 0.5 });
   });
 });

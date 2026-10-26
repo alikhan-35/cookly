@@ -13,6 +13,7 @@ import { trackEvent } from '../services/analytics';
 import { ingredientQuantity } from '../components/IngredientSubstitution';
 import { NotFoundPage } from './NotFoundPage';
 import { RestrictedRecipe } from './RecipePage';
+import { usePantry } from '../hooks/usePantry';
 
 export function CookingModePage() {
   const { id = '' } = useParams();
@@ -20,6 +21,7 @@ export function CookingModePage() {
   const { profile } = useProfile();
   const { servings, selections } = useRecipeSession(id);
   const available = useAvailableIngredients();
+  const { assumePantryStaples } = usePantry();
   const recipe = recipes.find(item => item.id === id);
   const [step, setStep] = useState(0);
   const [done, setDone] = useState<number[]>([]);
@@ -39,7 +41,7 @@ export function CookingModePage() {
   if (!recipe) return <NotFoundPage/>;
   if (!isRecipeAllowed(recipe, profile)) return <RestrictedRecipe/>;
   const steps = getRecipeSteps(recipe, servings);
-  const effective = getEffectiveIngredients(recipe, selections, servings, available, profile);
+  const effective = getEffectiveIngredients(recipe, selections, servings, available, profile, { assumePantryStaples });
   const stepTime = extractMinutes(steps[step]);
   function goToStep(next: number, markCurrent = false) {
     if (!recipe) return;

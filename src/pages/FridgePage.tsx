@@ -9,6 +9,7 @@ import { fridgeCategories, type FridgeCategory, type FridgeItem } from '../types
 import { trackEvent } from '../services/analytics';
 import { expiryDays, fridgeUnits, type FridgeInput } from '../utils/fridge';
 import '../fridge.css';
+import { PantryPolicyControl } from '../components/PantryPolicyControl';
 
 const categoryIcons = { Овощи: Carrot, Фрукты: Apple, Мясо: Beef, Рыба: Fish, Молочные: Milk, Яйца: Egg, Крупы: Wheat, Макароны: CookingPot, Соусы: Package, Другое: Package };
 
@@ -41,6 +42,7 @@ export function FridgePage() {
 
   return <div className="container fridge-page">
     <div className="fridge-heading"><div><span className="eyebrow"><Leaf size={15}/> Всё хорошее уже дома</span><h1>Мой холодильник<span>.</span></h1><p>Добавляйте продукты, которые есть дома, и Cookly будет учитывать их при подборе блюд.</p></div>{items.length > 0 && <button className="button primary fridge-add" onClick={() => setEditing(null)}><Plus size={18}/> Добавить продукт</button>}</div>
+    <PantryPolicyControl/>
 
     {items.length === 0 ? <section className="fridge-empty" aria-labelledby="fridge-empty-title"><span className="fridge-empty-icon"><Refrigerator size={50} strokeWidth={1.4}/><span><Leaf size={20}/></span></span><span className="fridge-kicker">МЕСТО ДЛЯ ВКУСНЫХ ИДЕЙ</span><h2 id="fridge-empty-title">В холодильнике пока пусто</h2><p>Добавьте продукты, чтобы Cookly мог предлагать блюда из того, что уже есть дома.</p><button className="button primary" onClick={() => setEditing(null)}><Plus size={18}/> Добавить первый продукт</button><button className="fridge-demo-button" onClick={() => { if (fillDemo()) toast('Пример продуктов добавлен'); }}><Sparkles size={16}/> Заполнить примером</button><span className="fridge-demo-hint">7 привычных продуктов, чтобы попробовать Cookly</span></section> : <>
       <div className="fridge-summary"><span><Refrigerator size={19}/><strong>{items.length}</strong> {productWord(items.length)} дома</span><span className="fridge-summary-fresh"><Check size={16}/>{usableNames.length} для подбора</span>{soon > 0 && <span className="fridge-summary-soon"><CalendarDays size={16}/>{soon} использовать скорее</span>}<button className="text-button fridge-clear" onClick={() => setConfirmClear(true)}><Trash2 size={15}/> Очистить холодильник</button></div>

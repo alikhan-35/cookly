@@ -110,23 +110,71 @@ describe('recipe matching', () => {
   it('counts unique meaningful ingredients and assumes staples while separating optional ingredients', () => {
     const dish = recipe('pasta', [
       ingredient('Курица', { main: true }), ingredient('Макароны', { main: true }),
-      ingredient('Соль'), ingredient('Масло'), ingredient('Базилик', { optional: true }),
+      ingredient('Соль'), ingredient('Растительное масло'), ingredient('Базилик', { optional: true }),
     ]);
     const match = matchRecipe(dish, ['куриное филе', 'КУРИЦА', 'курица', 'соль']);
     expect(match.matchedCount).toBe(1);
     expect(match.requiredCount).toBe(2);
     expect(match.coverage).toBe(0.5);
-    expect(match.available.map(({ name }) => name)).toEqual(['Курица', 'Соль', 'Масло']);
+    expect(match.available.map(({ name }) => name)).toEqual(['Курица', 'Соль']);
+    expect(match.assumedPantry.map(({ name }) => name)).toEqual(['Растительное масло']);
     expect(match.missing.map(({ name }) => name)).toEqual(['Макароны']);
     expect(match.optional.map(({ name }) => name)).toEqual(['Базилик']);
   });
 
-  it('does not count aliases in recipe data twice', () => {
-    const dish = recipe('duplicates', [ingredient('Курица'), ingredient('Куриное филе'), ingredient('Лук')]);
+  it('deduplicates true aliases without dropping distinct cuts in recipe data', () => {
+    const dish = recipe('duplicates', [ingredient('Курица'), ingredient('Куриное филе'), ingredient('Филе курицы'), ingredient('Лук')]);
     const match = matchRecipe(dish, ['куриная грудка']);
     expect(match.matchedCount).toBe(1);
+    expect(match.requiredCount).toBe(3);
+    expect(match.missing.map(item => item.name)).toEqual(['Курица', 'Лук']);
+  });
+
+  it('excludes all staple positions from default counters even when actually present', () => {
+    const dish = recipe('salted-rice', [ingredient('Рис', { main: true }), ingredient('Соль'), ingredient('Вода')]);
+    const match = matchRecipe(dish, ['Рис', 'Соль']);
+    expect(match.matchedCount).toBe(1);
+    expect(match.requiredCount).toBe(1);
+    expect(match.coverage).toBe(1);
+    expect(match.available.map(item => item.name)).toEqual(['Рис', 'Соль']);
+    expect(match.assumedPantry.map(item => item.name)).toEqual(['Вода']);
+    expect(match.missing).toEqual([]);
+  });
+
+  it('requires actual pantry stock with assumptions disabled and does not duplicate aliases', () => {
+    const dish = recipe('strict-rice', [ingredient('Рис', { main: true }), ingredient('Соль'), ingredient('Поваренная соль'), ingredient('Вода')]);
+    const match = matchRecipe(dish, ['Риса', 'Рис', 'Соль'], undefined, [], { assumePantryStaples: false });
+    expect(match.requiredCount).toBe(3);
+    expect(match.matchedCount).toBe(2);
+    expect(match.coverage).toBeCloseTo(2 / 3);
+    expect(match.available.map(item => item.name)).toEqual(['Рис', 'Соль']);
+    expect(match.assumedPantry).toEqual([]);
+    expect(match.missing.map(item => item.name)).toEqual(['Вода']);
+  });
+
+  it('never treats arbitrary recipe flags as assumed pantry products', () => {
+    const dish = recipe('flagged-sauce', [ingredient('Яйца', { main: true }), ingredient('Трюфельное масло', { isPantryStaple: true }), ingredient('Молоко', { isPantryStaple: true })]);
+    const match = matchRecipe(dish, ['Яйца']);
+    expect(match.requiredCount).toBe(3);
+    expect(match.missing.map(item => item.name)).toEqual(['Трюфельное масло', 'Молоко']);
+    expect(match.assumedPantry).toEqual([]);
+  });
+
+  it('matches unknown labels exactly but does not infer meat, oil or dairy substitutions', () => {
+    const dish = recipe('distinct-products', [ingredient('Курица', { main: true }), ingredient('Оливковое масло'), ingredient('Сливки'), ingredient('Паста мисо')]);
+    const match = matchRecipe(dish, ['Куриное филе', 'Подсолнечное масло', 'Сметана', '  паста   мисо '], undefined, [], { assumePantryStaples: false });
+    expect(match.available.map(item => item.name)).toEqual(['Паста мисо']);
+    expect(match.missing.map(item => item.name)).toEqual(['Курица', 'Оливковое масло', 'Сливки']);
+    expect(match.matchedCount).toBe(1);
+  });
+
+  it('keeps optional aliases optional unless a required source position exists', () => {
+    const dish = recipe('mixed-aliases', [ingredient('Картошка', { optional: true }), ingredient('Картофель', { main: true }), ingredient('Яйцо')]);
+    const match = matchRecipe(dish, ['Картофель']);
     expect(match.requiredCount).toBe(2);
-    expect(match.missing).toHaveLength(1);
+    expect(match.available).toHaveLength(1);
+    expect(match.optional).toEqual([]);
+    expect(match.available[0].optional).not.toBe(true);
   });
 
   it('optional ingredients never make a recipe incomplete', () => {
@@ -152,14 +200,16 @@ describe('recommendation ranking', () => {
     expect(recommendRecipes(options, ['яйцо'], null).map(({ missing }) => missing.length)).toEqual([0, 1, 2, 3]);
   });
 
-  it('weights main ingredient matches more strongly at the same missing count', () => {
+  it('requires an actual main-food match instead of recommending from supporting products alone', () => {
     const options = [
       recipe('onion-main', [ingredient('Лук', { main: true }), ingredient('Курица'), ingredient('Сыр')]),
       recipe('chicken-main', [ingredient('Курица', { main: true }), ingredient('Лук'), ingredient('Сыр')]),
     ];
     const matches = recommendRecipes(options, ['Курица', 'Сыр'], null);
-    expect(matches[0].recipe.id).toBe('chicken-main');
-    expect(matches[0].score).toBeGreaterThan(matches[1].score);
+    expect(matches.map(match => match.recipe.id)).toEqual(['chicken-main']);
+    expect(recommendRecipes([recipe('meat-and-onion', [ingredient('Курица', { main: true }), ingredient('Лук'), ingredient('Сыр')])], ['Лук', 'Сыр'], null)).toEqual([]);
+    const noMain = recipe('unmarked-food', [ingredient('Лук'), ingredient('Сыр')]);
+    expect(recommendRecipes([noMain], ['Лук'], null).map(match => match.recipe.id)).toEqual(['unmarked-food']);
   });
 
   it('does not suggest recipes based only on pantry staples or optional ingredients', () => {
@@ -167,6 +217,23 @@ describe('recommendation ranking', () => {
     expect(recommendRecipes(options, ['соль', 'сыр', 'масло'], null)).toEqual([]);
     expect(recommendRecipes(options, ['банан'], null)).toEqual([]);
     expect(recommendRecipes(options, [], null)).toEqual([]);
+    expect(recommendRecipes(options, ['Соль', 'Сыр'], null, 5, undefined, [], { assumePantryStaples: false })).toEqual([]);
+    const spicesOnly = recipe('spice-water', [ingredient('Соль', { main: true }), ingredient('Чёрный перец'), ingredient('Вода')]);
+    for (const assumePantryStaples of [true, false]) {
+      expect(recommendRecipes([spicesOnly], ['Соль', 'Чёрный перец', 'Вода'], null, 5, undefined, [], { assumePantryStaples })).toEqual([]);
+    }
+  });
+
+  it('forwards the pantry policy into ranking and replacement availability', () => {
+    const dish = recipe('butter-rice', [ingredient('Рис', { main: true }), ingredient('Сливочное масло', { amount: 20, unit: 'г' }), ingredient('Соль')]);
+    dish.name = 'Рис со сливочным соусом';
+    dish.steps = ['Смешайте рис со сливочным соусом.'];
+    const assumed = recommendRecipes([dish], ['Рис'], null)[0];
+    const strict = recommendRecipes([dish], ['Рис'], null, 5, undefined, [], { assumePantryStaples: false })[0];
+    expect(assumed.substitutionCount).toBe(1);
+    expect(strict.substitutionCount).toBe(0);
+    expect(assumed.missing.map(item => item.name)).toEqual(['Сливочное масло']);
+    expect(strict.missing.map(item => item.name)).toEqual(['Сливочное масло', 'Соль']);
   });
 
   it('uses deterministic tie-breaking and respects the requested limit', () => {

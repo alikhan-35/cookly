@@ -1,4 +1,5 @@
 import type { UserProfile } from '../types';
+export { isPantryStaple } from './matchingPolicy';
 
 /** Canonical ingredient names keep chips, stored lists and recipe matching consistent. */
 const aliasGroups: Record<string, string[]> = {
@@ -74,17 +75,6 @@ export function normalizeIngredient(value: string): string {
 export function displayIngredient(value: string): string {
   const normalized = normalizeIngredient(value);
   return normalized.charAt(0).toLocaleUpperCase('ru-RU') + normalized.slice(1);
-}
-
-const pantryStaples = new Set([
-  'соль', 'черный перец', 'вода', 'растительное масло', 'паприка', 'сушеный чеснок',
-  'сушеный базилик', 'орегано', 'лавровый лист', 'зира', 'кориандр', 'корица',
-  'специи', 'итальянские травы', 'прованские травы',
-]);
-
-/** Dairy butter, sugar and fresh herbs are actual ingredients, not assumed staples. */
-export function isPantryStaple(name: string): boolean {
-  return pantryStaples.has(normalizeIngredient(name));
 }
 
 export const popularIngredients = [

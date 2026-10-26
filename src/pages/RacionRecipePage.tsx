@@ -8,6 +8,7 @@ import { useFridge } from '../hooks/useFridge';
 import { useProfile } from '../hooks/useProfile';
 import { useAnalyticsPreferences } from '../hooks/useAnalyticsPreferences';
 import { ServingSelector } from '../components/ServingSelector';
+import { PantryPolicyControl } from '../components/PantryPolicyControl';
 import { RecipeUsefulnessPrompt } from '../components/RecipeUsefulnessPrompt';
 import { RestrictedRecipe } from './RecipePage';
 import { isIngredientAllowed } from '../utils/ingredients';
@@ -25,7 +26,7 @@ function RacionRecipeDetail({ id }: { id: string }) {
   const { recipe, loading, error, retry, retryAfter } = useRacionRecipe(id);
   const { servings, setServings } = useRecipeSession(`racion:${id}`);
   const { profile } = useProfile();
-  const { rawIngredients, source } = usePantry();
+  const { rawIngredients, source, assumePantryStaples } = usePantry();
   const { usableNames } = useFridge();
   const { consent } = useAnalyticsPreferences();
   const location = useLocation();
@@ -37,7 +38,7 @@ function RacionRecipeDetail({ id }: { id: string }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const stock = navigationState.comparisonStock ?? (source === 'fridge' || rawIngredients.length > 0 ? rawIngredients : usableNames);
   const allowed = Boolean(recipe && recipe.ingredients.every(item => isIngredientAllowed(item.name, profile)));
-  const match = useMemo(() => recipe && stock.length > 0 ? matchRacionIngredients(recipe.ingredients, stock) : null, [recipe, stock]);
+  const match = useMemo(() => recipe ? matchRacionIngredients(recipe.ingredients, stock, { assumePantryStaples }) : null, [recipe, stock, assumePantryStaples]);
   const category = recipe ? racionCategory(recipe) : 'Рецепт';
   const analyticsId = racionAnalyticsId(id);
   useEffect(() => { document.title = recipe ? `${recipe.title} — Cookly` : 'Загружаем рецепт — Cookly'; }, [recipe]);
@@ -72,9 +73,11 @@ function RacionRecipeDetail({ id }: { id: string }) {
     <div className="recipe-detail-columns">
       <section className="recipe-ingredients-panel" aria-labelledby="racion-ingredients-title"><div className="section-title-row"><h2 id="racion-ingredients-title">Что понадобится</h2><span>{servings} порц.</span></div>
         <p className="muted">Количество пересчитано из состава на одну порцию. Размер посуды и время приготовления уточняйте по ходу готовки.</p>
-        <RacionIngredientList ingredients={recipe.ingredients} servings={servings} stock={stock.length > 0 ? stock : undefined}/>
-        {match && <div className={match.fullyMatched ? 'all-ingredients-ready' : 'racion-stock-summary'}>{match.fullyMatched ? <><Check size={18}/> Все продукты есть в вашем списке</> : <p>Есть {match.matchedCount} из {match.totalCount} ингредиентов. Нет в списке: {match.missing.length}.{match.unknown.length > 0 ? ` Требуют сверки: ${match.unknown.length}.` : ''}</p>}</div>}
-        <p className="racion-detail-note">Проверяется наличие продуктов, без достаточности запасов. Соль, масло и вода автоматически не добавляются.</p>
+        <PantryPolicyControl/>
+        <RacionIngredientList ingredients={recipe.ingredients} servings={servings} stock={stock}/>
+        {match && <div className={match.fullyMatched ? 'all-ingredients-ready' : 'racion-stock-summary'}>{match.fullyMatched ? <><Check size={18}/> Продукты для блюда есть</> : <p>Есть {match.matchedCount} из {match.totalCount} учитываемых продуктов. Нет в списке: {match.missingCount}.{match.unknownCount > 0 ? ` Требуют сверки: ${match.unknownCount}.` : ''}</p>}</div>}
+        {match?.fullyMatched && <p className="racion-detail-note">Есть {match.matchedCount} из {match.totalCount} учитываемых продуктов.</p>}
+        <p className="racion-detail-note">Показан полный состав источника. Количества запасов не проверяются. {assumePantryStaples ? 'Соль, вода, растительное масло и обычные специи не входят в подсчёт; их наличие уточните дома.' : 'В подсчёте учитывается весь состав, включая базовые продукты.'}</p>
         <Link className="text-button" to="/fridge">Открыть мой холодильник →</Link>
       </section>
       <section className="recipe-method" aria-labelledby="racion-method-title"><div className="section-title-row"><h2 id="racion-method-title">Как приготовить</h2><span>{recipe.steps.length} шагов</span></div>
@@ -93,8 +96,9 @@ export function RacionRecipeState({ loading, error, retry, retryAfter, backTo = 
 }
 
 export function RacionIngredientList({ ingredients, servings, stock }: { ingredients: RacionRecipeIngredient[]; servings: number; stock?: string[] }) {
-  const match = stock ? matchRacionIngredients(ingredients, stock) : null;
-  return <ul className="effective-ingredients racion-detail-ingredients">{ingredients.map((item, index) => <li key={`${item.ingredientId}-${index}`}><div className="effective-ingredient-row"><div><strong>{item.name}</strong>{match && <small className={match.available.includes(item) ? 'ingredient-present' : ''}>{match.available.includes(item) ? 'Есть в вашем списке' : match.unknown.includes(item) ? 'Сверьте наличие' : 'Нет в вашем списке'}</small>}</div><span>{racionQuantity(item.amount, item.unit, servings)}</span></div></li>)}</ul>;
+  const { assumePantryStaples } = usePantry();
+  const match = stock ? matchRacionIngredients(ingredients, stock, { assumePantryStaples }) : null;
+  return <ul className="effective-ingredients racion-detail-ingredients">{ingredients.map((item, index) => <li key={`${item.ingredientId}-${index}`}><div className="effective-ingredient-row"><div><strong>{item.name}</strong>{match && <small className={match.available.includes(item) ? 'ingredient-present' : ''}>{match.available.includes(item) ? 'Есть' : match.assumedPantry.includes(item) ? 'Базовый продукт' : match.unknown.includes(item) ? 'Уточнить' : 'Нет'}</small>}</div><span>{racionQuantity(item.amount, item.unit, servings)}</span></div></li>)}</ul>;
 }
 
 function RacionNutrition({ recipe }: { recipe: RacionRecipe }) {

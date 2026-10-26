@@ -1,6 +1,8 @@
 import type { Ingredient, Recipe, RecipeFeedback, RecipeMatch, UserProfile } from '../types';
 import { hasDislikedIngredient, isIngredientAllowed, isPantryStaple, normalizeIngredient } from './ingredients';
 import { getSubstitutionOptions } from './substitutions';
+import { matchingProductKey } from './pantryProducts';
+import type { MatchingOptions } from './matchingPolicy';
 
 const MAIN_INGREDIENT_WEIGHT = 3;
 
@@ -15,13 +17,13 @@ function latestFeedback(recipeId: string, feedback: RecipeFeedback[]): RecipeFee
     .sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0) || Number(a.liked) - Number(b.liked))[0];
 }
 
-const staple = (ingredient: Ingredient) => ingredient.isPantryStaple || isPantryStaple(ingredient.name);
+const staple = (ingredient: Ingredient) => isPantryStaple(ingredient.name);
 
 /** A duplicate/alias in recipe data must not inflate the match count. */
 function uniqueIngredients(ingredients: Ingredient[]): Ingredient[] {
   const result = new Map<string, Ingredient>();
   for (const ingredient of ingredients) {
-    const key = normalizeIngredient(ingredient.name);
+    const key = matchingProductKey(ingredient.name);
     if (!key) continue;
     const previous = result.get(key);
     if (!previous) {
@@ -34,27 +36,29 @@ function uniqueIngredients(ingredients: Ingredient[]): Ingredient[] {
   return [...result.values()];
 }
 
-export function matchRecipe(recipe: Recipe, available: string[], profile?: UserProfile, feedback: RecipeFeedback[] = []): RecipeMatch {
-  const pantry = new Set(available.map(normalizeIngredient).filter(Boolean));
+export function matchRecipe(recipe: Recipe, available: string[], profile?: UserProfile, feedback: RecipeFeedback[] = [], options: MatchingOptions = {}): RecipeMatch {
+  const pantry = new Set(available.map(matchingProductKey).filter(Boolean));
+  const assumePantryStaples = options.assumePantryStaples ?? true;
   const ingredients = uniqueIngredients(recipe.ingredients);
   const optional = ingredients.filter((ingredient) => ingredient.optional);
   const required = ingredients.filter((ingredient) => !ingredient.optional);
-  const meaningful = required.filter((ingredient) => !staple(ingredient));
-  const hasIngredient = (ingredient: Ingredient) => pantry.has(normalizeIngredient(ingredient.name));
-  const matched = meaningful.filter(hasIngredient);
-  const missing = meaningful.filter((ingredient) => !hasIngredient(ingredient));
-  const present = required.filter((ingredient) => staple(ingredient) || hasIngredient(ingredient));
-  const requiredCount = meaningful.length;
+  const counted = required.filter((ingredient) => !assumePantryStaples || !staple(ingredient));
+  const hasIngredient = (ingredient: Ingredient) => pantry.has(matchingProductKey(ingredient.name));
+  const matched = counted.filter(hasIngredient);
+  const missing = counted.filter((ingredient) => !hasIngredient(ingredient));
+  const present = required.filter(hasIngredient);
+  const assumedPantry = assumePantryStaples ? required.filter(ingredient => staple(ingredient) && !hasIngredient(ingredient)) : [];
+  const requiredCount = counted.length;
   const matchedCount = matched.length;
   const coverage = requiredCount ? matchedCount / requiredCount : 0;
   const weight = (ingredient: Ingredient) => ingredient.main ? MAIN_INGREDIENT_WEIGHT : 1;
-  const totalWeight = meaningful.reduce((sum, ingredient) => sum + weight(ingredient), 0);
+  const totalWeight = counted.reduce((sum, ingredient) => sum + weight(ingredient), 0);
   const matchedWeight = matched.reduce((sum, ingredient) => sum + weight(ingredient), 0);
   const weightedCoverage = totalWeight ? matchedWeight / totalWeight : 0;
-  const mainIngredients = meaningful.filter((ingredient) => ingredient.main);
+  const mainIngredients = counted.filter((ingredient) => ingredient.main);
   const missingAllMain = mainIngredients.length > 0 && !mainIngredients.some(hasIngredient);
   const substitutions = missing.flatMap((original) => {
-    const option = getSubstitutionOptions(recipe, original, available, profile).find((item) => item.available);
+    const option = getSubstitutionOptions(recipe, original, available, profile, options).find((item) => item.available);
     return option ? [{ original: original.name, replacement: option.label }] : [];
   });
   const disliked = hasDislikedIngredient(ingredients.map(({ name }) => name), profile);
@@ -78,7 +82,7 @@ export function matchRecipe(recipe: Recipe, available: string[], profile?: UserP
     - (missingAllMain ? 80 : 0)
     - Math.max(0, missing.length - 2) * 5;
 
-  return { recipe, available: present, missing, optional, matchedCount, requiredCount, coverage, score, substitutionCount: substitutions.length, substitutions, profileFit: !disliked && isRecipeAllowed(recipe, profile) && difficultyPenalty === 0 && !(profile?.hasChildren && isSpicy) };
+  return { recipe, available: present, assumedPantry, missing, optional, matchedCount, requiredCount, coverage, score, substitutionCount: substitutions.length, substitutions, profileFit: !disliked && isRecipeAllowed(recipe, profile) && difficultyPenalty === 0 && !(profile?.hasChildren && isSpicy) };
 }
 
 export function recommendRecipes(
@@ -88,6 +92,7 @@ export function recommendRecipes(
   limit = 5,
   profile?: UserProfile,
   feedback: RecipeFeedback[] = [],
+  options: MatchingOptions = {},
 ): RecipeMatch[] {
   if (!Number.isFinite(limit) || limit <= 0) return [];
 
@@ -97,8 +102,11 @@ export function recommendRecipes(
   const candidates = recipes
     .filter((recipe) => maxTime === null || recipe.cookingTime <= maxTime)
     .filter((recipe) => isRecipeAllowed(recipe, profile))
-    .map((recipe) => { const match = matchRecipe(recipe, available, profile, feedback); if (likedCategories.has(recipe.category)) match.score += 18; return match; })
-    .filter((match) => match.matchedCount > 0)
+    .map((recipe) => { const match = matchRecipe(recipe, available, profile, feedback, options); if (likedCategories.has(recipe.category)) match.score += 18; return match; })
+    .filter((match) => {
+      const requiresMainFood = uniqueIngredients(match.recipe.ingredients).some(ingredient => !ingredient.optional && ingredient.main && !staple(ingredient));
+      return match.available.some(ingredient => !staple(ingredient) && (!requiresMainFood || ingredient.main));
+    })
     .sort((a, b) => (
       deprioritized(a.recipe) - deprioritized(b.recipe)
       || missingTier(a) - missingTier(b)

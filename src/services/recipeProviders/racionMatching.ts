@@ -1,55 +1,73 @@
 import { resolveIngredient } from '../../catalog/ingredients';
+import { isPantryStaple, type MatchingOptions } from '../../utils/matchingPolicy';
+import { matchingProductKey } from '../../utils/pantryProducts';
 import type { RacionRecipeIngredient } from './racion';
 
 export interface RacionIngredientMatch {
+  /** Original source rows, including repeated positions; only actual stock. */
   available: RacionRecipeIngredient[];
+  /** Absent whitelist staples ignored by the current policy, never labelled present. */
+  assumedPantry: RacionRecipeIngredient[];
   missing: RacionRecipeIngredient[];
   unknown: RacionRecipeIngredient[];
+  /** Unique actual matches among requirements counted by the current policy. */
   matchedCount: number;
-  /** Every source position, including unknown and repeated ingredients. */
   totalCount: number;
+  missingCount: number;
+  unknownCount: number;
+  /** Unique actual non-pantry matches, independent of the current policy. */
+  meaningfulMatchedCount: number;
   coverage: number;
   fullyMatched: boolean;
 }
 
-function normalizeName(name: string): string {
-  return name.trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/\s+/gu, ' ');
-}
-
-/**
- * Presence only. The provider's IDs, amounts, units and pantry labels remain facts
- * from Racion; they are neither Cookly IDs nor evidence that an item is available.
- * Unrecognized equal Russian labels may match exactly, without fuzzy matching.
- */
+/** Presence only: source IDs, amounts and pantry flags never prove availability. */
 export function matchRacionIngredients(
   ingredients: readonly RacionRecipeIngredient[],
   availableNames: readonly string[],
+  options: MatchingOptions = {},
 ): RacionIngredientMatch {
-  const names = new Set(availableNames.map(normalizeName).filter(Boolean));
-  const canonicalIds = new Set(availableNames.map(name => resolveIngredient(name)?.id)
-    .filter((id): id is string => Boolean(id)));
+  const assumePantryStaples = options.assumePantryStaples !== false;
+  const stockKeys = new Set(availableNames.map(matchingProductKey).filter(Boolean));
   const available: RacionRecipeIngredient[] = [];
+  const assumedPantry: RacionRecipeIngredient[] = [];
   const missing: RacionRecipeIngredient[] = [];
   const unknown: RacionRecipeIngredient[] = [];
+  const countedKeys = new Set<string>();
+  const matchedKeys = new Set<string>();
+  const missingKeys = new Set<string>();
+  const unknownKeys = new Set<string>();
+  const meaningfulKeys = new Set<string>();
 
   for (const ingredient of ingredients) {
-    const normalized = normalizeName(ingredient.name);
-    const identity = resolveIngredient(ingredient.name);
-    if ((/[а-я]/u.test(normalized) && names.has(normalized)) || (identity && canonicalIds.has(identity.id))) {
+    const key = matchingProductKey(ingredient.name);
+    const pantry = isPantryStaple(ingredient.name);
+    const present = Boolean(key) && stockKeys.has(key);
+    const counted = !assumePantryStaples || !pantry;
+    if (counted) countedKeys.add(key);
+    if (present) {
       available.push(ingredient);
-    } else if (identity) {
+      if (counted) matchedKeys.add(key);
+      if (!pantry) meaningfulKeys.add(key);
+    } else if (assumePantryStaples && pantry) {
+      assumedPantry.push(ingredient);
+    } else if (resolveIngredient(ingredient.name) || pantry) {
       missing.push(ingredient);
+      missingKeys.add(key);
     } else {
       unknown.push(ingredient);
+      unknownKeys.add(key);
     }
   }
 
-  const totalCount = ingredients.length;
+  const totalCount = countedKeys.size;
+  const matchedCount = matchedKeys.size;
+  const meaningfulMatchedCount = meaningfulKeys.size;
   return {
-    available, missing, unknown,
-    matchedCount: available.length,
-    totalCount,
-    coverage: totalCount ? available.length / totalCount : 0,
-    fullyMatched: totalCount > 0 && available.length === totalCount,
+    available, assumedPantry, missing, unknown,
+    matchedCount, totalCount, missingCount: missingKeys.size, unknownCount: unknownKeys.size,
+    meaningfulMatchedCount,
+    coverage: totalCount ? matchedCount / totalCount : 0,
+    fullyMatched: meaningfulMatchedCount > 0 && totalCount > 0 && matchedCount === totalCount,
   };
 }

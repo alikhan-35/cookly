@@ -2,7 +2,10 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, CookingPot, LoaderCircle, Plus, Refrigerator, RotateCcw, Search, SearchX, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { RacionRecipeCard, racionErrorMessage } from '../components/RacionRecipeCard';
+import { PantryPolicyControl } from '../components/PantryPolicyControl';
 import { useFridge } from '../hooks/useFridge';
+import { usePantry } from '../hooks/usePantry';
+import { matchingProductKey } from '../utils/pantryProducts';
 import { RacionProviderError, type RacionRecipePage, type RacionSlot } from '../services/recipeProviders/racion';
 import { loadRacionSearch } from '../services/recipeProviders/racionCache';
 import '../preview.css';
@@ -17,13 +20,11 @@ const examples = [
   { label: 'Картофель и овощи', query: 'картофель', names: ['Картофель', 'Лук', 'Морковь', 'Помидоры', 'Чеснок', 'Растительное масло', 'Соль', 'Вода'] },
   { label: 'Продукты для завтрака', query: 'яйца', names: ['Яйца', 'Молоко', 'Сливочное масло', 'Пшеничная мука', 'Сахар', 'Соль', 'Вода'] },
 ];
-// Keep a user's comparison set when opening a recipe and returning in this session.
-let catalogStock: string[] | null = null;
-function cleanName(value: string) { return value.trim().toLocaleLowerCase('ru').replace(/ё/g, 'е').replace(/\s+/g, ' '); }
 function readSlot(value: string | null): RacionSlot | '' { return meals.some(item => item.value === value) ? value as RacionSlot | '' : ''; }
 
 export function RacionCatalogPage() {
   const { usableNames } = useFridge();
+  const { catalogStock, setCatalogStock } = usePantry();
   const [params, setParams] = useSearchParams();
   const query = params.get('q') ?? '';
   const slot = readSlot(params.get('slot'));
@@ -44,7 +45,7 @@ export function RacionCatalogPage() {
   const waitSeconds = Math.max(0, Math.ceil((blockedUntil - now) / 1000));
 
   useEffect(() => { document.title = 'Каталог рецептов — Cookly'; }, []);
-  useEffect(() => { catalogStock = stock; }, [stock]);
+  useEffect(() => { setCatalogStock(stock); }, [stock, setCatalogStock]);
   useEffect(() => { setDraftQuery(query); setDraftSlot(slot); }, [query, slot]);
   useEffect(() => {
     if (blockedUntil <= Date.now()) return;
@@ -89,7 +90,7 @@ export function RacionCatalogPage() {
     const name = stockDraft.trim();
     if (!name || !/[а-яёa-z]/i.test(name)) { setStockError('Введите название продукта.'); return; }
     if (stock.length >= 40) { setStockError('Можно добавить до 40 продуктов.'); return; }
-    if (stock.some(item => cleanName(item) === cleanName(name))) { setStockError('Этот продукт уже выбран.'); return; }
+    if (stock.some(item => matchingProductKey(item) === matchingProductKey(name))) { setStockError('Этот продукт уже выбран.'); return; }
     setStock(previous => [...previous, name]); setStockDraft(''); setStockError('');
   }
   function onLimit(cause: unknown) {
@@ -126,7 +127,8 @@ export function RacionCatalogPage() {
         {stock.length > 0 && <ul className="racion-stock-chips" aria-label="Продукты для сверки">{stock.map(name => <li key={name}><span>{name}</span><button aria-label={`Убрать ${name}`} onClick={() => setStock(previous => previous.filter(item => item !== name))}><X size={13}/></button></li>)}</ul>}
         <form className="racion-add-stock" onSubmit={addStock}><label className="sr-only" htmlFor="racion-stock-input">Добавить продукт для сверки</label><input id="racion-stock-input" maxLength={60} value={stockDraft} onChange={event => { setStockDraft(event.target.value); setStockError(''); }} placeholder="Например, яйца"/><button className="button secondary" type="submit"><Plus size={16}/> Добавить</button>{stock.length > 0 && <button type="button" className="racion-text-button" onClick={() => setStock([])}>Очистить набор</button>}</form>
         {stockError && <p className="racion-form-error" role="alert">{stockError}</p>}
-        <p className="racion-stock-hint">Отметьте соль, масло и воду, если они есть дома.</p>
+        <PantryPolicyControl/>
+        <p className="racion-stock-hint">В рецептах всегда показан полный состав источника. Сверяется наличие продуктов, без проверки их количества.</p>
       </div>
     </details>
 
