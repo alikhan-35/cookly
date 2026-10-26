@@ -3,6 +3,9 @@
   "scope": "Text and browser voice intake with review before atomic inventory save; AI adapter prepared but not activated",
   "fullSuitePassedBeforeSqlRegression": 458,
   "additionalSqlRegressionTestsPassed": 5,
+  "currentFullSuitePassed": 508,
+  "gatewayTestsPassed": 49,
+  "gatewayDeadlineAndBillingRegressionsAdded": 12,
   "speechLifecycleMockTestsPassed": 30,
   "productionBuildPassed": true,
   "separateWorkerBuildPassed": true,
@@ -16,12 +19,42 @@
     "mobile320BodyAndClientWidth": 305,
     "horizontalOverflow": false,
     "consoleErrorsOrWarnings": false,
-    "realMicrophoneAudioCaptured": false
+    "realMicrophoneAudioCaptured": false,
+    "geminiThreeProductsSavedAfterReload": true,
+    "unavailableGeminiLocalFallback": true
   },
   "aiKeyCreated": false,
-  "aiBackendDeployed": false,
+  "aiAuthenticationVerified": true,
+  "aiLiveParseSucceeded": true,
+  "aiAccessCheck": {
+    "upstreamStatus": 200,
+    "gatewayStatus": 200,
+    "freeTierVerifiedInAIStudio": true,
+    "billingLinked": false,
+    "liveParsingInBrowser": true,
+    "missingFoodsExcluded": true,
+    "automaticRetries": 0
+  },
+  "aiBackendDeployed": true,
   "aiProductionEnabled": false,
-  "aiBlocker": "Automatic approval review rejected creating a non-expiring key and requires a direct user confirmation of creation and lifetime",
+  "aiBudget": 0,
+  "paidProvidersAllowed": false,
+  "aiPreferredCandidate": "Gemini API Free Tier selected; live parsing verified, production client not connected",
+  "aiBlocker": "Hosted runtime secret and explicit permission for public API access pending; ChatGPT Sites login requested. No billing or paid fallback.",
   "photoRecognitionImplemented": false,
-  "sqlLimits": "SQLite verified fixed-window caps, concurrent writers and rejection of stale windows"
+  "sqlLimits": "SQLite verified fixed-window caps, concurrent writers and rejection of stale windows",
+  "aiProvider": "gemini-3.5-flash-lite",
+  "aiKeyReused": true,
+  "aiHostedSecretPresent": false,
+  "aiHostedAudience": "owner-private",
+  "backendUrl": "https://cookly-fridge-assistant.cherrygrass1025.chatgpt.site",
+  "backendD1Verified": true,
+  "legacyOpenAIKeyCreated": true,
+  "legacyOpenAIAccessCheck": {
+    "modelsStatus": 200,
+    "responsesStatus": 429,
+    "errorCode": "credit_balance_exhausted",
+    "errorType": "insufficient_quota",
+    "automaticRetries": 0
+  }
 }

@@ -6,7 +6,7 @@ import { fridgeCategories, type FridgeCategory } from '../types';
 import { fridgeUnits, validateFridgeInput, type FridgeInput } from '../utils/fridge';
 import { matchingProductKey } from '../utils/pantryProducts';
 import { parseFridgeText, validateIntakeResult, type IntakeProduct, type IntakeResult } from '../utils/fridgeIntake';
-import { assistantConfigured, parseFridgeWithAssistant } from '../services/fridgeAssistant';
+import { assistantConfigured, FridgeAssistantError, parseFridgeWithAssistant } from '../services/fridgeAssistant';
 import { speechRecognitionSupported, startFridgeDictation } from '../services/speechRecognition';
 import '../fridge-intake.css';
 
@@ -171,7 +171,9 @@ export function FridgeIntake() {
       setStatus(checked.products.length ? 'Список разобран. Проверьте продукты перед добавлением.' : 'Не удалось выделить продукты. Измените список и попробуйте ещё раз.');
     } catch (cause) {
       if (!mounted.current || controller.signal.aborted || version !== requestVersion.current) return;
-      setError(cause instanceof Error && cause.name === 'IntakeValidationError' ? cause.message : 'Разобрать список не получилось. Попробуйте ещё раз или добавьте продукты вручную.');
+      setError(cause instanceof FridgeAssistantError || cause instanceof Error && cause.name === 'IntakeValidationError' ? cause.message
+        : hasAssistant && !useLocal ? 'Разбор с Gemini сейчас недоступен. Попробуйте ещё раз или нажмите «Разобрать на устройстве».'
+          : 'Разобрать список не получилось. Попробуйте ещё раз или добавьте продукты вручную.');
     } finally {
       if (mounted.current && version === requestVersion.current) { setBusy(false); request.current = null; }
     }
@@ -203,8 +205,10 @@ export function FridgeIntake() {
     <div className="fridge-intake-text-meta"><p id={`${prefix}-text-hint`}>Количество необязательно. Неизвестные значения оставим пустыми.</p><span>{text.length}/{MAX_TEXT_LENGTH}</span></div>
     <div className="fridge-intake-examples" aria-label="Примеры списков">{examples.map(example => <button type="button" key={example.label} disabled={busy || voiceActive} onClick={() => replaceText(example.text)}>{example.label}</button>)}</div>
     <p className="fridge-intake-voice-note">Речь распознаёт браузер; он может отправлять аудио своему сервису.</p>
+    {hasAssistant && <p className="fridge-intake-ai-note" id={`${prefix}-assistant-note`}>«Разобрать с Gemini» отправит список продуктов Google Gemini. На бесплатном тарифе Google может использовать список и ответ для улучшения моделей. <a href="https://ai.google.dev/gemini-api/terms#unpaid-services" target="_blank" rel="noreferrer">Условия Google</a>.</p>}
     <div className="fridge-intake-actions"><button type="button" className={`button secondary fridge-intake-mic${voiceActive ? ' listening' : ''}`} disabled={busy || !voiceSupported || voicePhase === 'stopping'} onClick={startVoice}>{voiceActive ? <Square size={16}/> : <Mic size={17}/>} {voicePhase === 'starting' ? 'Запускаем микрофон…' : voicePhase === 'stopping' ? 'Останавливаем…' : voiceActive ? 'Остановить запись' : 'Продиктовать список'}</button>
-      <button type="button" className="button primary" disabled={busy || voiceActive || !text.trim()} onClick={() => void analyze()}>{busy ? <LoaderCircle className="spin" size={17}/> : <ListPlus size={18}/>} {busy ? 'Разбираем список…' : 'Разобрать список'}</button>
+      <button type="button" className="button primary" disabled={busy || voiceActive || !text.trim()} aria-describedby={hasAssistant ? `${prefix}-assistant-note` : undefined} onClick={() => void analyze()}>{busy ? <LoaderCircle className="spin" size={17}/> : <ListPlus size={18}/>} {busy ? 'Разбираем список…' : hasAssistant ? 'Разобрать с Gemini' : 'Разобрать список'}</button>
+      {hasAssistant && <button type="button" className="button secondary" disabled={busy || voiceActive || !text.trim()} onClick={() => void analyze(true)}>Разобрать на устройстве</button>}
       {busy && <button type="button" className="fridge-intake-cancel" onClick={cancelRequest}><X size={16}/> Отменить разбор</button>}
       <span className="fridge-intake-engine">{(result?.engine ?? (hasAssistant ? 'ai' : 'local')) === 'ai' ? 'Разбор с помощью ИИ' : 'Разбор на устройстве'}</span>
     </div>
@@ -226,7 +230,7 @@ export function FridgeIntake() {
       <div className="fridge-intake-review-actions"><button type="button" className="button primary" disabled={!selectedCount || invalidSelected || busy || voiceActive} onClick={confirm}><Check size={18}/> Добавить {selectedCount} {productWord(selectedCount)}</button><button type="button" className="button secondary" onClick={cancelReview}>Вернуться к исходному списку</button></div>
       <p className="fridge-intake-note">Сроки годности не угадываем. Их можно добавить в карточках продуктов после сохранения.</p>
     </div>}
-    {error && <div className="fridge-intake-error" role="alert"><p>{error}</p>{hasAssistant && !busy && !result && text.trim() && <button type="button" className="fridge-intake-cancel" onClick={() => void analyze(true)}>Разобрать на устройстве</button>}</div>}
+    {error && <div className="fridge-intake-error" role="alert"><p>{error}</p></div>}
   </section>;
 }
 

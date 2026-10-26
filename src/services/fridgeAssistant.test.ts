@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { assistantConfigured, assistantEndpoint, parseFridgeWithAssistant } from './fridgeAssistant';
+import { assistantConfigured, assistantEndpoint, FridgeAssistantError, parseFridgeWithAssistant } from './fridgeAssistant';
 
 const valid = { engine: 'ai', warnings: [], products: [{ id: 'egg', name: 'Яйца', amount: 2, unit: 'шт.', category: 'Яйца', selected: true }] };
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -27,7 +27,8 @@ describe('fridge assistant client', () => {
       .mockResolvedValueOnce(new Response('sensitive upstream diagnostics', { status: 429 }));
     vi.stubGlobal('fetch', fetcher);
     await expect(parseFridgeWithAssistant('2 яйца')).rejects.toThrow('некорректный список');
-    await expect(parseFridgeWithAssistant('2 яйца')).rejects.toThrow('Слишком много');
+    await expect(parseFridgeWithAssistant('2 яйца')).rejects.toMatchObject({ name: 'FridgeAssistantError', message: expect.stringContaining('Слишком много') });
+    expect(new FridgeAssistantError('Безопасное сообщение')).toBeInstanceOf(Error);
   });
   it('does not return a late successful response after the caller cancels', async () => {
     vi.stubEnv('VITE_FRIDGE_ASSISTANT_URL', 'https://assistant.example/api/fridge/parse');
