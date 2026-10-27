@@ -4,7 +4,7 @@
   "focusedTestsPassed": 97,
   "productionBuildPassed": true,
   "workerBuildPassed": true,
-  "fullReleaseCI": "pending",
+  "fullReleaseCI": "passed",
   "browserPhotoFlowVerified": false,
   "browserVerificationBlocker": "CUA timed out and reset repeatedly; no browser proof claimed",
   "billingLinked": false,
@@ -22,5 +22,22 @@
     "cheeseUnknownQuantityUnselected": true,
     "nonFoodAndPriceLinesExcluded": true,
     "originalFixtureHasRealPersonalData": false
+  },
+  "fullTestsPassed": 552,
+  "fullTestFilesPassed": 22,
+  "publishedClientCommit": "c4a378260cd26fefffbeb3a4e92d143579728e97",
+  "actionsUrl": "https://github.com/alikhan-35/cookly/actions/runs/40533087911",
+  "deploymentSucceeded": true,
+  "publishedBundleHttpCheck": {
+    "pageStatus": 200,
+    "bundleStatus": 200,
+    "asset": "/cookly/assets/index-CEut6sNN.js",
+    "receiptModePresent": true,
+    "recognizeButtonPresent": true,
+    "doesNotReplaceBrowserQA": true
+  },
+  "secretAudit": {
+    "checkedFiles": 12,
+    "secretMatches": 0
   }
 }
