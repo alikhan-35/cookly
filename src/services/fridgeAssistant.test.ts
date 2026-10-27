@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { assistantConfigured, assistantEndpoint, FridgeAssistantError, parseFridgeWithAssistant } from './fridgeAssistant';
+import { assistantConfigured, assistantEndpoint, FridgeAssistantError, parseFridgeWithAssistant, parseFridgeReceiptWithAssistant } from './fridgeAssistant';
 
 const valid = { engine: 'ai', warnings: [], products: [{ id: 'egg', name: 'Яйца', amount: 2, unit: 'шт.', category: 'Яйца', selected: true }] };
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -35,5 +35,27 @@ describe('fridge assistant client', () => {
     const controller = new AbortController();
     vi.stubGlobal('fetch', vi.fn(async () => { controller.abort(); return new Response(JSON.stringify(valid)); }));
     await expect(parseFridgeWithAssistant('2 яйца', { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+  });
+  it('sends only a validated image to the receipt route without cookies or file metadata', async () => {
+    vi.stubEnv('VITE_FRIDGE_ASSISTANT_URL', 'https://assistant.example/api/fridge/parse');
+    const receipt = { mimeType: 'image/png' as const, data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aIXcAAAAASUVORK5CYII=' };
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify(valid)));
+    vi.stubGlobal('fetch', fetcher);
+    const result = await parseFridgeReceiptWithAssistant(receipt);
+    expect(result.products[0].name).toBe('Яйца');
+    expect(fetcher).toHaveBeenCalledOnce();
+    expect(fetcher.mock.calls[0][0]).toBe('https://assistant.example/api/fridge/receipt');
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ receipt });
+    expect(fetcher.mock.calls[0][1].credentials).toBe('omit');
+  });
+  it('rejects disguised files before network access and offers text entry after receipt quota errors', async () => {
+    vi.stubEnv('VITE_FRIDGE_ASSISTANT_URL', 'https://assistant.example/api/fridge/parse');
+    const fetcher = vi.fn().mockResolvedValue(new Response('private upstream message', { status: 429 }));
+    vi.stubGlobal('fetch', fetcher);
+    await expect(parseFridgeReceiptWithAssistant({ mimeType: 'image/jpeg', data: btoa('this is not a photo of a receipt') })).rejects.toMatchObject({ name: 'FridgeAssistantError' });
+    expect(fetcher).not.toHaveBeenCalled();
+    const receipt = { mimeType: 'image/png' as const, data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aIXcAAAAASUVORK5CYII=' };
+    await expect(parseFridgeReceiptWithAssistant(receipt)).rejects.toThrow('Список и голос');
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 });

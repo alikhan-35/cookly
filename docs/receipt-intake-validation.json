@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-10-27",
+  "scope": "Receipt image intake with local preview, explicit Gemini upload and shared inventory review",
+  "focusedTestsPassed": 97,
+  "productionBuildPassed": true,
+  "workerBuildPassed": true,
+  "fullReleaseCI": "pending",
+  "browserPhotoFlowVerified": false,
+  "browserVerificationBlocker": "CUA timed out and reset repeatedly; no browser proof claimed",
+  "billingLinked": false,
+  "paidFallbackAllowed": false,
+  "backendDeploymentId": "appgdep_6ae0c45176448191a0efe5c7adee59ef",
+  "backendSourceCommit": "4180b62ba871ad1ae2b7a4d3d7ef18fc9a38f7af",
+  "backendVersionId": "appgprj_6adf9c1700e881919a47c7539d1f0555~appgver_64a015e7f8288191a67e377bac489266",
+  "backendEnvironmentRevision": 2,
+  "receiptPhotosStoredByCookly": false,
+  "liveSyntheticReceipt": {
+    "status": 200,
+    "milkLitres": 2,
+    "chickenFilletKg": 0.726,
+    "eggsPieces": 10,
+    "cheeseUnknownQuantityUnselected": true,
+    "nonFoodAndPriceLinesExcluded": true,
+    "originalFixtureHasRealPersonalData": false
+  }
+}

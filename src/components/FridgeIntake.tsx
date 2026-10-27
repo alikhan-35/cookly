@@ -1,12 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Check, ListPlus, LoaderCircle, Mic, Square, Trash2, X } from 'lucide-react';
+import { Camera, Check, ListPlus, LoaderCircle, Mic, RotateCw, Square, Trash2, X } from 'lucide-react';
 import { useFridge } from '../hooks/useFridge';
 import { useToast } from '../hooks/useToast';
 import { fridgeCategories, type FridgeCategory } from '../types';
 import { fridgeUnits, validateFridgeInput, type FridgeInput } from '../utils/fridge';
 import { matchingProductKey } from '../utils/pantryProducts';
 import { parseFridgeText, validateIntakeResult, type IntakeProduct, type IntakeResult } from '../utils/fridgeIntake';
-import { assistantConfigured, FridgeAssistantError, parseFridgeWithAssistant } from '../services/fridgeAssistant';
+import { assistantConfigured, FridgeAssistantError, parseFridgeReceiptWithAssistant, parseFridgeWithAssistant } from '../services/fridgeAssistant';
+import { prepareReceiptImage, ReceiptImageError, type ReceiptImage } from '../utils/receiptImage';
 import { speechRecognitionSupported, startFridgeDictation } from '../services/speechRecognition';
 import '../fridge-intake.css';
 
@@ -33,6 +34,12 @@ export function FridgeIntake() {
   const { toast } = useToast();
   const prefix = useId();
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<'text' | 'receipt'>('text');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receipt, setReceipt] = useState<ReceiptImage | null>(null);
+  const [rotation, setRotation] = useState(0);
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [text, setText] = useState('');
   const textValue = useRef('');
   const [result, setResult] = useState<Pick<IntakeResult, 'warnings' | 'engine'> | null>(null);
@@ -105,7 +112,37 @@ export function FridgeIntake() {
   function cancelRequest() {
     requestVersion.current++;
     request.current?.abort(); request.current = null;
-    setBusy(false); setError(''); setStatus('Разбор отменён. Исходный список сохранён.');
+    setBusy(false); setPreparingPhoto(false); setError(''); setStatus('Разбор отменён. Можно попробовать снова.');
+  }
+  function changeMode(next: 'text' | 'receipt') {
+    if (busy || voiceActive || next === mode) return;
+    requestVersion.current++; request.current?.abort(); request.current = null;
+    setMode(next); setResult(null); setProducts([]); setError(''); setVoiceError(''); setStatus('');
+  }
+  function removeReceipt() {
+    requestVersion.current++; request.current?.abort(); request.current = null;
+    setReceipt(null); setReceiptFile(null); setRotation(0); setBusy(false); setPreparingPhoto(false);
+    setResult(null); setProducts([]); setError(''); setStatus('');
+    if (fileInput.current) fileInput.current.value = '';
+  }
+  async function loadReceipt(file: File, turns = 0) {
+    if (busy || voiceActive) return;
+    request.current?.abort();
+    const controller = new AbortController(); request.current = controller;
+    const version = ++requestVersion.current;
+    setBusy(true); setPreparingPhoto(true); setError(''); setStatus(''); setResult(null); setProducts([]);
+    setReceipt(null); setReceiptFile(file); setRotation(turns);
+    try {
+      const prepared = await prepareReceiptImage(file, controller.signal, turns);
+      if (!mounted.current || controller.signal.aborted || version !== requestVersion.current) return;
+      setReceipt(prepared); setStatus('Фото готово. Проверьте, что строки чека читаются, и нажмите «Распознать чек».');
+    } catch (cause) {
+      if (!mounted.current || controller.signal.aborted || version !== requestVersion.current) return;
+      setReceiptFile(null);
+      setError(cause instanceof ReceiptImageError ? cause.message : 'Не удалось подготовить фото. Выберите другое или перечислите продукты текстом.');
+    } finally {
+      if (mounted.current && version === requestVersion.current) { setBusy(false); setPreparingPhoto(false); request.current = null; }
+    }
   }
   function stopVoice() {
     if (!dictation.current || voicePhaseRef.current === 'stopping') return;
@@ -156,23 +193,30 @@ export function FridgeIntake() {
   async function analyze(useLocal = false) {
     if (busy || voiceActive) return;
     const source = textValue.current.trim();
-    if (!source) { setError('Перечислите продукты, которые есть дома.'); textarea.current?.focus(); return; }
+    if (mode === 'receipt' ? !receipt : !source) {
+      setError(mode === 'receipt' ? 'Выберите фото чека.' : 'Перечислите продукты, которые есть дома.');
+      if (mode === 'text') textarea.current?.focus();
+      return;
+    }
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
     const version = ++requestVersion.current;
     setBusy(true); setError(''); setStatus(''); setResult(null); setProducts([]);
     try {
-      const parsed = hasAssistant && !useLocal ? await parseFridgeWithAssistant(source, { signal: controller.signal }) : parseFridgeText(source);
+      const parsed = mode === 'receipt' && receipt ? await parseFridgeReceiptWithAssistant(receipt, { signal: controller.signal })
+        : hasAssistant && !useLocal ? await parseFridgeWithAssistant(source, { signal: controller.signal }) : parseFridgeText(source);
       const checked = validateIntakeResult(parsed);
       if (!mounted.current || controller.signal.aborted || version !== requestVersion.current) return;
       setResult({ warnings: checked.warnings, engine: checked.engine });
       setProducts(checked.products.map(product => ({ ...product, amountText: product.amount === undefined ? '' : String(product.amount) })));
-      setStatus(checked.products.length ? 'Список разобран. Проверьте продукты перед добавлением.' : 'Не удалось выделить продукты. Измените список и попробуйте ещё раз.');
+      setStatus(checked.products.length ? 'Список разобран. Проверьте продукты перед добавлением.'
+        : mode === 'receipt' ? 'В чеке не удалось выделить продукты. Попробуйте более чёткое фото или напишите список.' : 'Не удалось выделить продукты. Измените список и попробуйте ещё раз.');
     } catch (cause) {
       if (!mounted.current || controller.signal.aborted || version !== requestVersion.current) return;
       setError(cause instanceof FridgeAssistantError || cause instanceof Error && cause.name === 'IntakeValidationError' ? cause.message
-        : hasAssistant && !useLocal ? 'Разбор с Gemini сейчас недоступен. Попробуйте ещё раз или нажмите «Разобрать на устройстве».'
+        : mode === 'receipt' ? 'Не удалось распознать чек. Попробуйте позже или перечислите продукты в разделе «Список и голос».'
+          : hasAssistant && !useLocal ? 'Разбор с Gemini сейчас недоступен. Попробуйте ещё раз или нажмите «Разобрать на устройстве».'
           : 'Разобрать список не получилось. Попробуйте ещё раз или добавьте продукты вручную.');
     } finally {
       if (mounted.current && version === requestVersion.current) { setBusy(false); request.current = null; }
@@ -184,8 +228,8 @@ export function FridgeIntake() {
     setError('');
   }
   function cancelReview() {
-    setResult(null); setProducts([]); setError(''); setStatus('Исходный список сохранён. Можно исправить его и разобрать снова.');
-    textarea.current?.focus();
+    setResult(null); setProducts([]); setError(''); setStatus(mode === 'receipt' ? 'Фото сохранено на этом экране. Можно распознать его снова или заменить.' : 'Исходный список сохранён. Можно исправить его и разобрать снова.');
+    if (mode === 'text') textarea.current?.focus();
   }
   function confirm() {
     const selected = review.filter(row => row.selected);
@@ -195,11 +239,14 @@ export function FridgeIntake() {
     const error = addItems(selected.map(row => draftInput(row.product)));
     if (error) { setError(error); return; }
     toast(`Добавлено в холодильник: ${selected.length} ${productWord(selected.length)}`);
-    textValue.current = ''; setText(''); setResult(null); setProducts([]); setError(''); setVoiceError(''); setStatus('Продукты добавлены в холодильник.');
+    textValue.current = ''; setText(''); setReceipt(null); setReceiptFile(null); setRotation(0);
+    setResult(null); setProducts([]); setError(''); setVoiceError(''); setStatus('Продукты добавлены в холодильник.');
   }
 
   return <section className="fridge-intake" aria-labelledby={`${prefix}-title`}>
-    <div className="fridge-intake-heading"><span className="fridge-intake-icon"><ListPlus size={25}/></span><div><h2 id={`${prefix}-title`}>Добавим продукты списком</h2><p>Напишите или продиктуйте, что есть дома. Перед добавлением можно всё проверить и исправить.</p></div></div>
+    <div className="fridge-intake-heading"><span className="fridge-intake-icon"><ListPlus size={25}/></span><div><h2 id={`${prefix}-title`}>Добавим продукты</h2><p>{hasAssistant ? 'Напишите список, продиктуйте его или загрузите фото чека.' : 'Напишите или продиктуйте, что есть дома.'} Перед добавлением можно всё проверить и исправить.</p></div></div>
+    {hasAssistant && <div className="fridge-intake-modes" role="group" aria-label="Способ добавления продуктов"><button type="button" aria-pressed={mode === 'text'} disabled={busy || voiceActive} onClick={() => changeMode('text')}><ListPlus size={17}/> Список и голос</button><button type="button" aria-pressed={mode === 'receipt'} disabled={busy || voiceActive} onClick={() => changeMode('receipt')}><Camera size={17}/> Фото чека</button></div>}
+    {mode === 'text' ? <>
     <label className="fridge-intake-text-label" htmlFor={`${prefix}-text`}>Перечислите продукты</label>
     <textarea ref={textarea} id={`${prefix}-text`} value={text} maxLength={MAX_TEXT_LENGTH} rows={4} disabled={voiceActive} onChange={event => replaceText(event.target.value)} aria-describedby={`${prefix}-text-hint`} placeholder="Куриное филе 500 г, картофель 1 кг, 6 яиц и молоко"/>
     <div className="fridge-intake-text-meta"><p id={`${prefix}-text-hint`}>Количество необязательно. Неизвестные значения оставим пустыми.</p><span>{text.length}/{MAX_TEXT_LENGTH}</span></div>
@@ -215,6 +262,16 @@ export function FridgeIntake() {
     {voiceActive && <p className="fridge-intake-voice-status" role="status"><span className="fridge-intake-recording-dot"/>{voicePhase === 'starting' ? 'Ждём доступ к микрофону' : voicePhase === 'stopping' ? 'Завершаем распознавание' : 'Слушаем список продуктов'}<span aria-hidden="true">{voiceSeconds} / {MAX_VOICE_SECONDS} сек.</span></p>}
     {!voiceSupported && <p className="fridge-intake-note">Голосовой ввод недоступен в этом браузере. Можно написать список текстом.</p>}
     {!hasAssistant && <p className="fridge-intake-note">Перечисляйте продукты через запятую или с новой строки. Результат можно исправить перед добавлением.</p>}
+    </> : <div className="fridge-intake-receipt">
+      <p className="fridge-intake-receipt-hint">Снимите чек ровно и при хорошем свете. Оставьте только строки с покупками, закройте QR-код и личные данные. JPG, PNG или WebP, до 15 МБ.</p>
+      <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={busy || voiceActive} aria-label="Выберите фото чека" onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void loadReceipt(file); }}/>
+      {receipt && <figure className="fridge-intake-receipt-preview"><img src={`data:${receipt.mimeType};base64,${receipt.data}`} alt="Выбранное фото чека перед отправкой"/><figcaption>Фото отправится только после нажатия «Распознать чек».</figcaption></figure>}
+      <div className="fridge-intake-receipt-tools"><button type="button" className="button secondary" disabled={busy || voiceActive} onClick={() => fileInput.current?.click()}><Camera size={17}/> {receipt ? 'Заменить фото' : 'Выбрать фото чека'}</button>{receipt && <><button type="button" className="button secondary" disabled={busy || voiceActive || !receiptFile} onClick={() => { if (receiptFile) void loadReceipt(receiptFile, (rotation + 1) % 4); }}><RotateCw size={16}/> Повернуть</button><button type="button" className="fridge-intake-cancel" disabled={busy} onClick={removeReceipt}><X size={16}/> Убрать фото</button></>}</div>
+      <p className="fridge-intake-note">Добавим только продукты. Цены, скидки и служебные строки чека пропустим. Неуверенно распознанные строки потребуют вашего выбора.</p>
+      <p className="fridge-intake-ai-note" id={`${prefix}-receipt-note`}>«Распознать чек» отправит фото Google Gemini. На бесплатном тарифе Google может использовать фото и ответ для улучшения моделей. <a href="https://ai.google.dev/gemini-api/terms#unpaid-services" target="_blank" rel="noreferrer">Условия Google</a>.</p>
+      <div className="fridge-intake-actions"><button type="button" className="button primary" disabled={busy || !receipt || voiceActive} aria-describedby={`${prefix}-receipt-note`} onClick={() => void analyze()}>{busy ? <LoaderCircle className="spin" size={17}/> : <Camera size={18}/>} {preparingPhoto ? 'Готовим фото…' : busy ? 'Читаем чек…' : 'Распознать чек'}</button>{busy && <button type="button" className="fridge-intake-cancel" onClick={cancelRequest}><X size={16}/> Отменить</button>}<span className="fridge-intake-engine">Разбор с помощью ИИ</span></div>
+      {!busy && error && <button type="button" className="fridge-intake-cancel" onClick={() => changeMode('text')}>Перечислить продукты текстом</button>}
+    </div>}
     {voiceError && <p className="fridge-intake-warning" role="alert">{voiceError}</p>}
     {status && <p className="fridge-intake-status" role="status">{status}</p>}
 
@@ -227,7 +284,7 @@ export function FridgeIntake() {
           {(duplicate || product.note || (selected && validation)) && <div className="fridge-intake-product-notes">{duplicate && <p>{duplicate}</p>}{product.note && <p>{product.note}</p>}{selected && validation && <p className="fridge-intake-row-error">{validation}</p>}</div>}
         </li>;
       })}</ol>}
-      <div className="fridge-intake-review-actions"><button type="button" className="button primary" disabled={!selectedCount || invalidSelected || busy || voiceActive} onClick={confirm}><Check size={18}/> Добавить {selectedCount} {productWord(selectedCount)}</button><button type="button" className="button secondary" onClick={cancelReview}>Вернуться к исходному списку</button></div>
+      <div className="fridge-intake-review-actions"><button type="button" className="button primary" disabled={!selectedCount || invalidSelected || busy || voiceActive} onClick={confirm}><Check size={18}/> Добавить {selectedCount} {productWord(selectedCount)}</button><button type="button" className="button secondary" onClick={cancelReview}>{mode === 'receipt' ? 'Вернуться к фото чека' : 'Вернуться к исходному списку'}</button></div>
       <p className="fridge-intake-note">Сроки годности не угадываем. Их можно добавить в карточках продуктов после сохранения.</p>
     </div>}
     {error && <div className="fridge-intake-error" role="alert"><p>{error}</p></div>}
