@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanFridgeName, expiryDays, isValidExpiry, localDateString, parseFridgeItems, usableFridgeNames, validateFridgeInput, validateFridgeBatch, type FridgeInput } from './fridge';
+import { cleanFridgeName, expiryDays, isValidExpiry, localDateString, parseFridgeItems, parseFridgeState, planFridgeBatch, previewFridgeUpdate, convertFridgeAmount, usableFridgeNames, validateFridgeInput, validateFridgeBatch, type FridgeInput } from './fridge';
 
 const chicken: FridgeInput = { name: 'Куриное филе', amount: 500, unit: 'г', category: 'Мясо' };
 
@@ -7,7 +7,7 @@ describe('fridge inventory validation', () => {
   it('validates a bulk addition without changing existing inventory or accepting a partial batch', () => {
     const existing = [{ ...chicken, id: 'kept' }];
     const before = structuredClone(existing);
-    expect(validateFridgeBatch([{ name: 'Яйца', unit: 'шт.', amount: 2, category: 'Яйца' }, chicken], existing)).not.toBeNull();
+    expect(validateFridgeBatch([{ name: 'Яйца', unit: 'шт.', amount: 2, category: 'Яйца' }, { ...chicken, amount: -1 }], existing)).not.toBeNull();
     expect(existing).toEqual(before);
     expect(validateFridgeBatch([{ name: 'Яйца', unit: 'шт.', amount: 2, category: 'Яйца' }, { name: 'Яйцо', unit: '', category: 'Яйца' }], [])).not.toBeNull();
     expect(validateFridgeBatch([{ name: 'Яйца', unit: 'шт.', amount: 2, category: 'Яйца' }], existing)).toBeNull();
@@ -49,6 +49,55 @@ describe('fridge inventory validation', () => {
     expect(restored.map(item => item.amount)).toEqual([1, 2, 3, 4, 5, 6]);
     for (const name of names) expect(validateFridgeInput({ ...chicken, name }, restored)).not.toBeNull();
     expect(validateFridgeInput({ ...chicken, name: 'Масло оливковое' }, restored)).not.toBeNull();
+  });
+});
+
+describe('fridge replenishment and storage migration', () => {
+  const existing = { ...chicken, id: 'chicken', expiresOn: '2026-10-30' };
+  it('adds compatible quantities into one canonical product without mutating the original', () => {
+    const result = planFridgeBatch([{ ...chicken, name: 'Куриная грудка', amount: 1, unit: 'кг', expiresOn: '2026-11-01' }], [existing]);
+    expect(result.error).toBeNull();
+    expect(result.addedCount).toBe(0);
+    expect(result.items).toEqual([{ ...existing, amount: 1500 }]);
+    expect(existing.amount).toBe(500);
+  });
+  it('converts mass and volume but never guesses piece or pack sizes', () => {
+    expect(convertFridgeAmount(1, 'кг', 'г')).toBe(1000);
+    expect(convertFridgeAmount(500, 'мл', 'л')).toBe(0.5);
+    expect(convertFridgeAmount(1, 'шт.', 'г')).toBeNull();
+    expect(convertFridgeAmount(2, 'уп.', 'л')).toBeNull();
+    expect(convertFridgeAmount(1, '', '')).toBeNull();
+    expect(convertFridgeAmount(-1, 'г', 'г')).toBeNull();
+  });
+  it('does not invent totals for unknown stock or incompatible quantities', () => {
+    expect(previewFridgeUpdate({ ...chicken, amount: undefined }, existing, 'add').input.amount).toBeUndefined();
+    expect(previewFridgeUpdate({ ...chicken, amount: 2, unit: 'шт.' }, existing, 'add').input.amount).toBeUndefined();
+    expect(previewFridgeUpdate(chicken, { ...existing, amount: undefined }, 'add').input.amount).toBeUndefined();
+  });
+  it('sets a stated current remainder instead of repeatedly increasing it', () => {
+    const result = planFridgeBatch([{ ...chicken, amount: 1, unit: 'кг' }], [existing], 'set');
+    expect(result.items[0]).toMatchObject({ id: 'chicken', amount: 1, unit: 'кг' });
+    expect(planFridgeBatch([{ ...chicken, amount: 1, unit: 'кг' }], result.items, 'set').items[0].amount).toBe(1);
+    expect(previewFridgeUpdate({ ...chicken, amount: undefined }, existing, 'set').input.amount).toBe(500);
+  });
+  it('keeps the earlier explicit expiry when restocking', () => {
+    expect(previewFridgeUpdate({ ...chicken, expiresOn: '2026-11-01' }, existing, 'add').input.expiresOn).toBe('2026-10-30');
+    expect(previewFridgeUpdate({ ...chicken, expiresOn: '2026-10-29' }, existing, 'add').input.expiresOn).toBe('2026-10-29');
+  });
+  it('refills an existing product at capacity and rejects an invalid batch atomically', () => {
+    const full = Array.from({ length: 99 }, (_, index) => ({ ...existing, id: `item-${index}`, name: `Продукт ${index}` })).concat(existing);
+    expect(planFridgeBatch([chicken], full).error).toBeNull();
+    const failure = planFridgeBatch([chicken, { ...chicken, name: 'Рис', amount: -1 }], [existing]);
+    expect(failure.error).not.toBeNull();
+    expect(failure.items).toEqual([existing]);
+  });
+  it('preserves legacy inventory and validates bounded transaction and receipt ledgers', () => {
+    expect(parseFridgeState([existing])).toEqual({ version: 2, items: [existing], appliedConsumptionIds: [], importedReceiptIds: [] });
+    const state = parseFridgeState({ version: 2, items: [existing], appliedConsumptionIds: ['a', 'a', 2, '', 'b'], importedReceiptIds: ['receipt', 'receipt'] });
+    expect(state.appliedConsumptionIds).toEqual(['a', 'b']);
+    expect(state.importedReceiptIds).toEqual(['receipt']);
+    expect(parseFridgeState(null).items).toEqual([]);
+    expect(parseFridgeState({ items: [existing], appliedConsumptionIds: Array.from({ length: 120 }, (_, index) => String(index)) }).appliedConsumptionIds).toHaveLength(100);
   });
 });
 

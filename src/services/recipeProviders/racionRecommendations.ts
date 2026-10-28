@@ -38,18 +38,60 @@ function substantialProductKeys(names: readonly string[]): Set<string> {
   return new Set(names.map(matchingProductKey).filter(key => substantialKeys.has(key)));
 }
 
+// These groups control discovery/diversity and core-food requirements only.
+// They NEVER declare two cuts, species or product labels interchangeable.
+function animalFamily(name: string): string | null {
+  const value = clean(name);
+  if (/бульон|соус|приправ|кубик|желатин|яйц|яич/.test(value)) return null;
+  if (/куриц|курин|chicken/.test(value)) return 'chicken';
+  if (/индей|turkey/.test(value)) return 'turkey';
+  if (/говяд|beef/.test(value)) return 'beef';
+  if (/свин|бекон|ветчин|pork|bacon/.test(value)) return 'pork';
+  if (/баран|ягнят|lamb/.test(value)) return 'lamb';
+  if (/рыб|лосос|семг|минтай|треск|тунец|форел|скумбр|сельд|сардин|судак|хек|salmon|tuna|cod/.test(value)) return 'fish';
+  if (/кревет|кальмар|миди|краб|морепродукт|shrimp|prawn/.test(value)) return 'seafood';
+  if (/фарш|мяс|колбас|сосиск|утк|кролик/.test(value)) return 'meat';
+  return null;
+}
+
+function recipeFamily(recipe: RacionRecipe): string {
+  const names = recipe.ingredients.map(item => item.name);
+  const animal = [...new Set(names.map(animalFamily).filter(Boolean))].sort();
+  if (animal.length) return animal.join('+');
+  const namesText = names.map(clean).join(' ');
+  if (/яйц|яич|egg/.test(namesText)) return 'eggs';
+  if (/творог|сыр|молок|йогурт|кефир/.test(namesText)) return 'dairy';
+  if (/греч|рис|макарон|спагетт|лапш|овсян|круп|булгур/.test(namesText)) return 'grains';
+  if (/фасол|чечевиц|нут|горох/.test(namesText)) return 'legumes';
+  return 'vegetables';
+}
+
 /** Search seeds discover candidates; only the full ingredient list establishes a match. */
 export function racionSearchSeeds(stock: readonly string[]): string[] {
   const names = [...new Map(stock.filter(name => /[а-яёa-z]/i.test(name)).map(name => [matchingProductKey(name), name.trim()])).values()];
   const priority = (name: string) => /куриц|курин|говяд|индей|рыб|фарш|лосос|минтай|свинин/.test(clean(name)) ? 0
     : /рис|греч|макарон|карто|яйц|творог|овсян/.test(clean(name)) ? 1
     : 2;
-  return names.filter(name => !isPantryStaple(name) && !nonSeedCondiments.has(matchingProductKey(name)) && name.length <= 120)
-    .sort((a, b) => priority(a) - priority(b)).slice(0, 8);
+  const groups = new Map<string, string[]>();
+  for (const name of names.filter(name => !isPantryStaple(name) && !nonSeedCondiments.has(matchingProductKey(name)) && name.length <= 120)
+    .sort((a, b) => priority(a) - priority(b))) {
+    const family = animalFamily(name) ?? matchingProductKey(name);
+    groups.set(family, [...(groups.get(family) ?? []), name]);
+  }
+  // One chicken cut cannot crowd beef, fish or grains out of the first batch.
+  const seeds: string[] = [];
+  while ([...groups.values()].some(group => group.length)) {
+    for (const group of groups.values()) {
+      const name = group.shift();
+      if (name) seeds.push(name);
+    }
+  }
+  return seeds;
 }
 
 export function rankRacionRecipes(recipes: readonly RacionRecipe[], stock: readonly string[], maxTime: number | null, profile: UserProfile, options: MatchingOptions = {}) {
-  return recipes.filter(recipe => maxTime === null || (recipe.timeMinutes !== null && recipe.timeMinutes <= maxTime))
+  const ranked = [...new Map(recipes.map(recipe => [recipe.id, recipe])).values()]
+    .filter(recipe => maxTime === null || (recipe.timeMinutes !== null && recipe.timeMinutes <= maxTime))
     .filter(recipe => recipe.ingredients.every(item => isIngredientAllowed(item.name, profile)))
     .map(recipe => {
       const match = matchRacionIngredients(recipe.ingredients, stock, options);
@@ -57,9 +99,14 @@ export function rankRacionRecipes(recipes: readonly RacionRecipe[], stock: reado
       const presentSubstantial = substantialProductKeys(match.available.map(item => item.name));
       return { recipe, match, disliked: hasDislikedIngredient(recipe.ingredients.map(item => item.name), profile),
         missingSubstantialCount: substantial.size - presentSubstantial.size, hasSubstantial: substantial.size > 0,
-        matchedSubstantialCount: presentSubstantial.size };
+        matchedSubstantialCount: presentSubstantial.size, family: recipeFamily(recipe),
+        missingAnimal: [...match.missing, ...match.unknown].some(item => animalFamily(item.name) !== null) };
     })
-    .filter(item => item.match.meaningfulMatchedCount > 0 && (!item.hasSubstantial || item.matchedSubstantialCount > 0))
+    .filter(item => item.match.meaningfulMatchedCount > 0
+      && item.match.coverage >= 0.6
+      && item.match.missingCount + item.match.unknownCount <= 2
+      && !item.missingAnimal
+      && (!item.hasSubstantial || item.matchedSubstantialCount > 0))
     .sort((a, b) => Number(a.disliked) - Number(b.disliked)
       || Number(b.match.fullyMatched) - Number(a.match.fullyMatched)
       || (a.match.missingCount + a.match.unknownCount) - (b.match.missingCount + b.match.unknownCount)
@@ -68,4 +115,25 @@ export function rankRacionRecipes(recipes: readonly RacionRecipe[], stock: reado
       || b.match.meaningfulMatchedCount - a.match.meaningfulMatchedCount
       || (a.recipe.timeMinutes ?? Infinity) - (b.recipe.timeMinutes ?? Infinity)
       || a.recipe.id.localeCompare(b.recipe.id, 'ru'));
+
+  // Diversify only similarly good matches. Never promote a weak match, an extra
+  // shopping item or a missing protein merely to make the feed look varied.
+  const result: typeof ranked = [];
+  const familyCounts = new Map<string, number>();
+  while (ranked.length) {
+    const best = ranked[0];
+    let selected = 0;
+    for (let index = 1; index < ranked.length; index++) {
+      const candidate = ranked[index];
+      if (candidate.disliked !== best.disliked || candidate.match.fullyMatched !== best.match.fullyMatched
+        || candidate.match.missingCount + candidate.match.unknownCount !== best.match.missingCount + best.match.unknownCount
+        || candidate.missingSubstantialCount !== best.missingSubstantialCount
+        || candidate.match.coverage < best.match.coverage - 0.1) continue;
+      if ((familyCounts.get(candidate.family) ?? 0) < (familyCounts.get(ranked[selected].family) ?? 0)) selected = index;
+    }
+    const [item] = ranked.splice(selected, 1);
+    result.push(item);
+    familyCounts.set(item.family, (familyCounts.get(item.family) ?? 0) + 1);
+  }
+  return result;
 }

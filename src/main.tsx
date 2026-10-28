@@ -7,6 +7,7 @@ import './styles.css';
 import './fridge.css';
 import './enhancements.css';
 import './recipe-fix.css';
+import './final-design.css';
 import { FridgeProvider } from './hooks/useFridge';
 import { ToastProvider } from './hooks/useToast';
 import { ResetDataProvider } from './hooks/useResetData';

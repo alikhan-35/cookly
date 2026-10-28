@@ -30,10 +30,10 @@ describe('Racion discovery and confirmed ingredient ranking', () => {
   });
   it('ranks confirmed full stock before incomplete or unknown ingredients without assuming pantry', () => {
     const ranked = rankRacionRecipes([
-      recipe('unknown', ['Рис', 'Продукт без словаря']),
-      recipe('salt_missing', ['Рис', 'Соль']),
+      recipe('unknown', ['Рис', 'Лук', 'Продукт без словаря']),
+      recipe('salt_missing', ['Рис', 'Лук', 'Соль']),
       recipe('full', ['Рис']),
-    ], ['Рис'], null, profile, { assumePantryStaples: false });
+    ], ['Рис', 'Лук'], null, profile, { assumePantryStaples: false });
     expect(ranked[0].recipe.id).toBe('full');
     expect(ranked[0].match.fullyMatched).toBe(true);
     expect(ranked.find(item => item.recipe.id === 'unknown')?.match.unknown).toHaveLength(1);
@@ -70,7 +70,7 @@ describe('Racion discovery and confirmed ingredient ranking', () => {
     expect(result[0].match).toMatchObject({ fullyMatched: true, totalCount: 1, matchedCount: 1 });
     expect(result[0].match.assumedPantry).toHaveLength(2);
     expect(result[0].recipe.ingredients).toBe(meal.ingredients);
-    expect(rankRacionRecipes([meal], ['Рис'], null, profile, { assumePantryStaples: false })[0].match.fullyMatched).toBe(false);
+    expect(rankRacionRecipes([meal], ['Рис'], null, profile, { assumePantryStaples: false })).toEqual([]);
   });
 
   it('checks allergies against ignored spices before applying pantry assumptions', () => {
@@ -81,7 +81,39 @@ describe('Racion discovery and confirmed ingredient ranking', () => {
   it('does not let duplicated ingredient positions inflate coverage or ranking', () => {
     const meals = [recipe('duplicate', ['Рис', 'Рис', 'Куриное филе']), recipe('complete', ['Рис'])];
     const result = rankRacionRecipes(meals, ['Рис'], null, profile);
-    expect(result.map(item => item.recipe.id)).toEqual(['complete', 'duplicate']);
-    expect(result[1].match).toMatchObject({ matchedCount: 1, totalCount: 2, meaningfulMatchedCount: 1, coverage: 0.5 });
+    expect(result.map(item => item.recipe.id)).toEqual(['complete']);
+  });
+
+  it('rejects 1/7 and 2/7 matches even when a matched product is substantial', () => {
+    const meal = recipe('weak', ['Рис', 'Лук', 'Морковь', 'Сыр', 'Сметана', 'Помидоры', 'Огурцы']);
+    expect(rankRacionRecipes([meal], ['Рис'], null, profile)).toEqual([]);
+    expect(rankRacionRecipes([meal], ['Рис', 'Лук'], null, profile)).toEqual([]);
+  });
+
+  it('requires meat or fish despite adequate side-dish coverage', () => {
+    const meals = [recipe('beef', ['Говядина', 'Рис', 'Лук', 'Морковь']), recipe('fish', ['Минтай', 'Картофель', 'Лук', 'Сметана'])];
+    expect(rankRacionRecipes(meals, ['Рис', 'Лук', 'Морковь', 'Картофель', 'Сметана'], null, profile)).toEqual([]);
+  });
+
+  it('keeps complete and close incomplete recipes in one feed, complete first', () => {
+    const meals = [recipe('needs_carrot', ['Рис', 'Лук', 'Морковь']), recipe('full', ['Рис', 'Лук'])];
+    expect(rankRacionRecipes(meals, ['Рис', 'Лук'], null, profile).map(item => item.recipe.id)).toEqual(['full', 'needs_carrot']);
+  });
+
+  it('rotates discovery seeds across protein groups before another cut of the same protein', () => {
+    expect(racionSearchSeeds(['Куриное филе', 'Куриное бедро', 'Говядина', 'Минтай', 'Рис']).slice(0, 4))
+      .toEqual(['Куриное филе', 'Говядина', 'Минтай', 'Рис']);
+  });
+
+  it('interleaves similarly good proteins without promoting weaker matches', () => {
+    const meals = [recipe('chicken1', ['Куриное филе']), recipe('chicken2', ['Куриное филе']), recipe('fish', ['Минтай']), recipe('beef', ['Говядина'])];
+    const result = rankRacionRecipes(meals, ['Куриное филе', 'Минтай', 'Говядина'], null, profile);
+    expect(result.slice(0, 3).map(item => item.family).sort()).toEqual(['beef', 'chicken', 'fish']);
+  });
+
+  it('does not classify chicken eggs as chicken meat', () => {
+    const result = rankRacionRecipes([recipe('eggs', ['Яйца куриные', 'Рис', 'Помидоры', 'Лук'])], ['Рис', 'Помидоры', 'Лук'], null, profile);
+    expect(result).toHaveLength(1);
+    expect(result[0].family).toBe('eggs');
   });
 });

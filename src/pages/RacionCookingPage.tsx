@@ -5,10 +5,12 @@ import { useRacionRecipe, racionAnalyticsId, racionCategory, readRacionNavigatio
 import { useRecipeSession } from '../hooks/useRecipeSession';
 import { useProfile } from '../hooks/useProfile';
 import { useFeedback } from '../hooks/useFeedback';
+import { useFridge } from '../hooks/useFridge';
 import { isIngredientAllowed } from '../utils/ingredients';
 import { trackEvent } from '../services/analytics';
 import { RacionIngredientList, RacionRecipeState } from './RacionRecipePage';
 import { RestrictedRecipe } from './RecipePage';
+import { FridgeConsumptionReview } from '../components/FridgeConsumptionReview';
 import '../racion-recipe.css';
 
 export function RacionCookingPage() {
@@ -21,17 +23,21 @@ function RacionCooking({ id }: { id: string }) {
   const recipeState = useMemo(() => readRacionNavigationState(location.state), [location.state]);
   const { recipe, loading, error, retry, retryAfter } = useRacionRecipe(id);
   const sessionId = `racion:${id}`;
-  const { servings } = useRecipeSession(sessionId);
+  const { servings: sessionServings } = useRecipeSession(sessionId);
+  const startedServings: unknown = location.state && typeof location.state === 'object' ? location.state.cookingServings : undefined;
+  const servings = typeof startedServings === 'number' && Number.isInteger(startedServings) && startedServings >= 1 && startedServings <= 6 ? startedServings : sessionServings;
   const { profile } = useProfile();
   const { get, rate } = useFeedback();
+  const { hasConsumed } = useFridge();
+  const transactionId = `racion:${id}:${location.key}`;
   const [step, setStep] = useState(0);
   const [done, setDone] = useState<number[]>([]);
-  const [finished, setFinished] = useState(false);
+  const [finished, setFinished] = useState(() => hasConsumed(transactionId));
   const [timer, setTimer] = useState<number | null>(null);
   const [showSteps, setShowSteps] = useState(false);
   const title = useRef<HTMLHeadingElement>(null);
   const finishTitle = useRef<HTMLHeadingElement>(null);
-  const completionStarted = useRef(false);
+  const completionStarted = useRef(finished);
   const analyticsId = racionAnalyticsId(id);
   const category = recipe ? racionCategory(recipe) : 'Рецепт';
   const recipeRoute = `/recipe/racion/${encodeURIComponent(id)}`;
@@ -57,15 +63,16 @@ function RacionCooking({ id }: { id: string }) {
     title.current?.focus({ preventScroll: true });
   }
   function completeCooking() {
-    if (!recipe || completionStarted.current) return;
-    completionStarted.current = true;
+    if (!recipe) return;
     setFinished(true); setTimer(null); setDone(steps.map((_, index) => index));
+    if (completionStarted.current) return;
+    completionStarted.current = true;
     trackEvent('cooking_completed', {
       recipe_id: analyticsId, recipe_category: category, number_of_servings: servings,
       ...(recipe.timeMinutes !== null ? { cooking_time: recipe.timeMinutes } : {}),
     });
   }
-  if (finished) return <div className="container cooking-page cooking-complete racion-cooking-page"><Link className="back-link" to={recipeRoute} state={recipeState}><ArrowLeft size={16}/> Вернуться к рецепту</Link><div className="complete-card"><span className="complete-badge"><Check size={30}/></span><span className="eyebrow"><ChefHat size={15}/> ГОТОВО</span><h1 ref={finishTitle} tabIndex={-1}>Как получилось?</h1><p>{recipe.title} приготовлен. Ваш отзыв поможет Cookly лучше подбирать блюда.</p><div className="feedback-actions"><button aria-pressed={get(sessionId)?.liked === true} className={`feedback-button ${get(sessionId)?.liked === true ? 'selected' : ''}`} onClick={() => rate(sessionId, category, true)}><ThumbsUp size={19}/> Понравилось</button><button aria-pressed={get(sessionId)?.liked === false} className={`feedback-button ${get(sessionId)?.liked === false ? 'selected negative' : ''}`} onClick={() => rate(sessionId, category, false)}><ThumbsDown size={19}/> Не понравилось</button></div>{get(sessionId) && <p className="feedback-saved" role="status"><Heart size={14}/> Спасибо, отзыв сохранён</p>}<div className="complete-links"><button className="button primary" onClick={() => { completionStarted.current = false; setFinished(false); setStep(0); setDone([]); setTimer(null); }}>Посмотреть шаги ещё раз</button><Link className="button secondary" to="/recipes">К рекомендациям</Link></div></div></div>;
+  if (finished) return <div className="container cooking-page cooking-complete racion-cooking-page"><Link className="back-link" to={recipeRoute} state={recipeState}><ArrowLeft size={16}/> Вернуться к рецепту</Link><div className="complete-card"><span className="complete-badge"><Check size={30}/></span><span className="eyebrow"><ChefHat size={15}/> ГОТОВО</span><h1 ref={finishTitle} tabIndex={-1}>Как получилось?</h1><p>{recipe.title} приготовлен. Ваш отзыв поможет Cookly лучше подбирать блюда.</p><FridgeConsumptionReview transactionId={transactionId} ingredients={recipe.ingredients} servings={servings}/><div className="feedback-actions"><button aria-pressed={get(sessionId)?.liked === true} className={`feedback-button ${get(sessionId)?.liked === true ? 'selected' : ''}`} onClick={() => rate(sessionId, category, true)}><ThumbsUp size={19}/> Понравилось</button><button aria-pressed={get(sessionId)?.liked === false} className={`feedback-button ${get(sessionId)?.liked === false ? 'selected negative' : ''}`} onClick={() => rate(sessionId, category, false)}><ThumbsDown size={19}/> Не понравилось</button></div>{get(sessionId) && <p className="feedback-saved" role="status"><Heart size={14}/> Спасибо, отзыв сохранён</p>}<div className="complete-links"><button className="button primary" onClick={() => { setFinished(false); setStep(0); setDone([]); setTimer(null); }}>Посмотреть шаги ещё раз</button><Link className="button secondary" to="/recipes">К рекомендациям</Link></div></div></div>;
   const isLast = current === steps.length - 1;
   return <div className="container cooking-page racion-cooking-page"><div className="cooking-topbar"><Link className="back-link" to={recipeRoute} state={recipeState}><ArrowLeft size={16}/> Выйти из режима</Link><span className="cooking-title"><ChefHat size={16}/> {recipe.title}</span><span className="cooking-servings">{servings} порц.</span></div>
     <p className="racion-detail-note racion-cooking-note">Количества в списке пересчитаны на {servings} порц.; числа в шагах сохранены по источнику. Размер посуды и время приготовления уточняйте.</p>

@@ -3,7 +3,7 @@ import { Camera, Check, ListPlus, LoaderCircle, Mic, RotateCw, Square, Trash2, X
 import { useFridge } from '../hooks/useFridge';
 import { useToast } from '../hooks/useToast';
 import { fridgeCategories, type FridgeCategory } from '../types';
-import { fridgeUnits, validateFridgeInput, type FridgeInput } from '../utils/fridge';
+import { fridgeUnits, previewFridgeUpdate, validateFridgeInput, type FridgeInput, type FridgeUpdateMode } from '../utils/fridge';
 import { matchingProductKey } from '../utils/pantryProducts';
 import { parseFridgeText, validateIntakeResult, type IntakeProduct, type IntakeResult } from '../utils/fridgeIntake';
 import { assistantConfigured, FridgeAssistantError, parseFridgeReceiptWithAssistant, parseFridgeWithAssistant } from '../services/fridgeAssistant';
@@ -30,12 +30,14 @@ function draftInput(product: DraftProduct): FridgeInput {
 }
 
 export function FridgeIntake() {
-  const { items, addItems } = useFridge();
+  const { items, addItems, hasImportedReceipt } = useFridge();
   const { toast } = useToast();
   const prefix = useId();
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<'text' | 'receipt'>('text');
+  const [updateMode, setUpdateMode] = useState<FridgeUpdateMode>('set');
+  const [receiptId, setReceiptId] = useState<string | undefined>();
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receipt, setReceipt] = useState<ReceiptImage | null>(null);
   const [rotation, setRotation] = useState(0);
@@ -86,18 +88,18 @@ export function FridgeIntake() {
   }, [voiceActive]);
 
   const review = useMemo(() => {
-    const existing = new Set(items.map(item => matchingProductKey(item.name)));
+    const existing = new Map(items.map(item => [matchingProductKey(item.name), item]));
     const selectedKeys = new Set<string>();
     return products.map(product => {
       const key = matchingProductKey(product.name);
-      const duplicate = existing.has(key) ? 'Уже есть в холодильнике. Количество не изменится.'
-        : key && selectedKeys.has(key) ? 'Такой продукт уже выбран в этом списке.' : '';
+      const duplicate = key && selectedKeys.has(key) ? 'Такой продукт уже выбран в этом списке.' : '';
       const validation = validateFridgeInput(draftInput(product), []);
       const selected = product.selected && !duplicate;
       if (selected && key) selectedKeys.add(key);
-      return { product, duplicate, validation, selected };
+      const preview = validation ? null : previewFridgeUpdate(draftInput(product), existing.get(key), updateMode);
+      return { product, duplicate, validation, selected, preview, existing: existing.has(key) };
     });
-  }, [products, items]);
+  }, [products, items, updateMode]);
   const selectedCount = review.filter(row => row.selected).length;
   const invalidSelected = review.some(row => row.selected && row.validation);
 
@@ -117,11 +119,11 @@ export function FridgeIntake() {
   function changeMode(next: 'text' | 'receipt') {
     if (busy || voiceActive || next === mode) return;
     requestVersion.current++; request.current?.abort(); request.current = null;
-    setMode(next); setResult(null); setProducts([]); setError(''); setVoiceError(''); setStatus('');
+    setMode(next); setUpdateMode(next === 'receipt' ? 'add' : 'set'); setResult(null); setProducts([]); setError(''); setVoiceError(''); setStatus('');
   }
   function removeReceipt() {
     requestVersion.current++; request.current?.abort(); request.current = null;
-    setReceipt(null); setReceiptFile(null); setRotation(0); setBusy(false); setPreparingPhoto(false);
+    setReceipt(null); setReceiptId(undefined); setReceiptFile(null); setRotation(0); setBusy(false); setPreparingPhoto(false);
     setResult(null); setProducts([]); setError(''); setStatus('');
     if (fileInput.current) fileInput.current.value = '';
   }
@@ -131,11 +133,15 @@ export function FridgeIntake() {
     const controller = new AbortController(); request.current = controller;
     const version = ++requestVersion.current;
     setBusy(true); setPreparingPhoto(true); setError(''); setStatus(''); setResult(null); setProducts([]);
-    setReceipt(null); setReceiptFile(file); setRotation(turns);
+    setReceipt(null); setReceiptId(undefined); setReceiptFile(file); setRotation(turns);
     try {
       const prepared = await prepareReceiptImage(file, controller.signal, turns);
+      // Only the fingerprint is persisted. The image and recognised text remain on this screen.
+      const fingerprint = globalThis.crypto?.subtle
+        ? `receipt:${Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer())), byte => byte.toString(16).padStart(2, '0')).join('')}` : undefined;
       if (!mounted.current || controller.signal.aborted || version !== requestVersion.current) return;
-      setReceipt(prepared); setStatus('Фото готово. Проверьте, что строки чека читаются, и нажмите «Распознать чек».');
+      setReceipt(prepared); setReceiptId(fingerprint);
+      setStatus(fingerprint && hasImportedReceipt(fingerprint) ? 'Это фото чека уже добавлено. Повторное пополнение заблокировано.' : 'Фото готово. Проверьте, что строки чека читаются, и нажмите «Распознать чек».');
     } catch (cause) {
       if (!mounted.current || controller.signal.aborted || version !== requestVersion.current) return;
       setReceiptFile(null);
@@ -192,6 +198,7 @@ export function FridgeIntake() {
 
   async function analyze(useLocal = false) {
     if (busy || voiceActive) return;
+    if (mode === 'receipt' && receiptId && hasImportedReceipt(receiptId)) { setError('Этот чек уже добавлен. Для изменения остатка откройте карточку продукта.'); return; }
     const source = textValue.current.trim();
     if (mode === 'receipt' ? !receipt : !source) {
       setError(mode === 'receipt' ? 'Выберите фото чека.' : 'Перечислите продукты, которые есть дома.');
@@ -233,28 +240,28 @@ export function FridgeIntake() {
   }
   function confirm() {
     const selected = review.filter(row => row.selected);
-    if (!selected.length) { setError('Выберите хотя бы один новый продукт.'); return; }
+    if (!selected.length) { setError('Выберите хотя бы один продукт.'); return; }
     const invalid = selected.find(row => row.validation);
     if (invalid) { setError(`Проверьте «${invalid.product.name || 'продукт'}»: ${invalid.validation}`); return; }
-    const error = addItems(selected.map(row => draftInput(row.product)));
+    const error = addItems(selected.map(row => draftInput(row.product)), updateMode, mode === 'receipt' ? receiptId : undefined);
     if (error) { setError(error); return; }
-    toast(`Добавлено в холодильник: ${selected.length} ${productWord(selected.length)}`);
-    textValue.current = ''; setText(''); setReceipt(null); setReceiptFile(null); setRotation(0);
-    setResult(null); setProducts([]); setError(''); setVoiceError(''); setStatus('Продукты добавлены в холодильник.');
+    toast(`Холодильник обновлён: ${selected.length} ${productWord(selected.length)}`);
+    textValue.current = ''; setText(''); setReceipt(null); setReceiptId(undefined); setReceiptFile(null); setRotation(0);
+    setResult(null); setProducts([]); setError(''); setVoiceError(''); setStatus('Холодильник обновлён. Можно подбирать блюда.');
   }
 
   return <section className="fridge-intake" aria-labelledby={`${prefix}-title`}>
-    <div className="fridge-intake-heading"><span className="fridge-intake-icon"><ListPlus size={25}/></span><div><h2 id={`${prefix}-title`}>Добавим продукты</h2><p>{hasAssistant ? 'Напишите список, продиктуйте его или загрузите фото чека.' : 'Напишите или продиктуйте, что есть дома.'} Перед добавлением можно всё проверить и исправить.</p></div></div>
+    <div className="fridge-intake-heading"><span className="fridge-intake-icon"><ListPlus size={25}/></span><div><h2 id={`${prefix}-title`}>Список продуктов</h2><p>Проверьте результат перед сохранением. Одинаковые продукты останутся в одной карточке.</p></div></div>
     {hasAssistant && <div className="fridge-intake-modes" role="group" aria-label="Способ добавления продуктов"><button type="button" aria-pressed={mode === 'text'} disabled={busy || voiceActive} onClick={() => changeMode('text')}><ListPlus size={17}/> Список и голос</button><button type="button" aria-pressed={mode === 'receipt'} disabled={busy || voiceActive} onClick={() => changeMode('receipt')}><Camera size={17}/> Фото чека</button></div>}
     {mode === 'text' ? <>
     <label className="fridge-intake-text-label" htmlFor={`${prefix}-text`}>Перечислите продукты</label>
     <textarea ref={textarea} id={`${prefix}-text`} value={text} maxLength={MAX_TEXT_LENGTH} rows={4} disabled={voiceActive} onChange={event => replaceText(event.target.value)} aria-describedby={`${prefix}-text-hint`} placeholder="Куриное филе 500 г, картофель 1 кг, 6 яиц и молоко"/>
     <div className="fridge-intake-text-meta"><p id={`${prefix}-text-hint`}>Количество необязательно. Неизвестные значения оставим пустыми.</p><span>{text.length}/{MAX_TEXT_LENGTH}</span></div>
-    <div className="fridge-intake-examples" aria-label="Примеры списков">{examples.map(example => <button type="button" key={example.label} disabled={busy || voiceActive} onClick={() => replaceText(example.text)}>{example.label}</button>)}</div>
+    <details className="fridge-intake-examples-details"><summary>Примеры списков</summary><div className="fridge-intake-examples" aria-label="Примеры списков">{examples.map(example => <button type="button" key={example.label} disabled={busy || voiceActive} onClick={() => replaceText(example.text)}>{example.label}</button>)}</div></details>
     <p className="fridge-intake-voice-note">Речь распознаёт браузер; он может отправлять аудио своему сервису.</p>
-    {hasAssistant && <p className="fridge-intake-ai-note" id={`${prefix}-assistant-note`}>«Разобрать с Gemini» отправит список продуктов Google Gemini. На бесплатном тарифе Google может использовать список и ответ для улучшения моделей. <a href="https://ai.google.dev/gemini-api/terms#unpaid-services" target="_blank" rel="noreferrer">Условия Google</a>.</p>}
+    {hasAssistant && <p className="fridge-intake-ai-note" id={`${prefix}-assistant-note`}>«Разобрать список» отправит текст Google Gemini. На бесплатном тарифе Google может использовать текст и ответ для улучшения моделей. <a href="https://ai.google.dev/gemini-api/terms#unpaid-services" target="_blank" rel="noreferrer">Условия Google</a>.</p>}
     <div className="fridge-intake-actions"><button type="button" className={`button secondary fridge-intake-mic${voiceActive ? ' listening' : ''}`} disabled={busy || !voiceSupported || voicePhase === 'stopping'} onClick={startVoice}>{voiceActive ? <Square size={16}/> : <Mic size={17}/>} {voicePhase === 'starting' ? 'Запускаем микрофон…' : voicePhase === 'stopping' ? 'Останавливаем…' : voiceActive ? 'Остановить запись' : 'Продиктовать список'}</button>
-      <button type="button" className="button primary" disabled={busy || voiceActive || !text.trim()} aria-describedby={hasAssistant ? `${prefix}-assistant-note` : undefined} onClick={() => void analyze()}>{busy ? <LoaderCircle className="spin" size={17}/> : <ListPlus size={18}/>} {busy ? 'Разбираем список…' : hasAssistant ? 'Разобрать с Gemini' : 'Разобрать список'}</button>
+      <button type="button" className="button primary" disabled={busy || voiceActive || !text.trim()} aria-describedby={hasAssistant ? `${prefix}-assistant-note` : undefined} onClick={() => void analyze()}>{busy ? <LoaderCircle className="spin" size={17}/> : <ListPlus size={18}/>} {busy ? 'Разбираем список…' : 'Разобрать список'}</button>
       {hasAssistant && <button type="button" className="button secondary" disabled={busy || voiceActive || !text.trim()} onClick={() => void analyze(true)}>Разобрать на устройстве</button>}
       {busy && <button type="button" className="fridge-intake-cancel" onClick={cancelRequest}><X size={16}/> Отменить разбор</button>}
       <span className="fridge-intake-engine">{(result?.engine ?? (hasAssistant ? 'ai' : 'local')) === 'ai' ? 'Разбор с помощью ИИ' : 'Разбор на устройстве'}</span>
@@ -275,16 +282,20 @@ export function FridgeIntake() {
     {voiceError && <p className="fridge-intake-warning" role="alert">{voiceError}</p>}
     {status && <p className="fridge-intake-status" role="status">{status}</p>}
 
-    {result && <div className="fridge-intake-review" aria-labelledby={`${prefix}-review-title`}><div className="fridge-intake-review-heading"><div><span className="fridge-intake-step">ПЕРЕД ДОБАВЛЕНИЕМ</span><h3 id={`${prefix}-review-title`}>Проверьте список продуктов</h3><p>Добавятся только отмеченные строки. Уже имеющиеся продукты не изменятся.</p></div><span className="fridge-intake-review-count">Выбрано: {selectedCount}</span></div>
+    {result && <div className="fridge-intake-review" aria-labelledby={`${prefix}-review-title`}><div className="fridge-intake-review-heading"><div><span className="fridge-intake-step">ПЕРЕД СОХРАНЕНИЕМ</span><h3 id={`${prefix}-review-title`}>Проверьте изменения</h3><p>Сохранятся только отмеченные строки. Ниже показан новый остаток.</p></div><span className="fridge-intake-review-count">Выбрано: {selectedCount}</span></div>
+      <label className="fridge-intake-update-mode" htmlFor={`${prefix}-update-mode`}><span>Что указано в списке</span><select id={`${prefix}-update-mode`} value={updateMode} onChange={event => setUpdateMode(event.target.value as FridgeUpdateMode)}><option value="set">Всё, что есть дома — указать остаток</option><option value="add">Новые покупки — пополнить запас</option></select></label>
+      <p className="fridge-intake-note">{updateMode === 'add' ? 'Прибавим покупку, если количества и единицы известны. При неизвестном остатке сохраним только наличие.' : 'Указанное количество станет текущим остатком. Строки без количества подтвердят наличие и сохранят прежний остаток.'}</p>
+      {mode === 'receipt' && <p className="fridge-intake-note">Не добавляйте один чек повторно. Точное повторное фото проверяется на этом устройстве; другое фото того же чека может не распознаться как повтор.</p>}
       {result.warnings.length > 0 && <ul className="fridge-intake-warnings" aria-label="Что проверить">{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}
-      {review.length > 0 && <ol className="fridge-intake-products">{review.map(({ product, duplicate, validation, selected }, index) => {
+      {review.length > 0 && <ol className="fridge-intake-products">{review.map(({ product, duplicate, validation, selected, preview, existing }, index) => {
         const rowId = `${prefix}-product-${index}`;
-        return <li key={product.id} className={duplicate ? 'fridge-intake-product duplicate' : 'fridge-intake-product'}><div className="fridge-intake-product-top"><label className="fridge-intake-select"><input type="checkbox" checked={selected} disabled={Boolean(duplicate)} onChange={event => editProduct(product.id, { selected: event.target.checked })} aria-label={`Добавить ${product.name || `продукт ${index + 1}`}`}/><span>Добавить</span></label><button type="button" className="fridge-intake-remove" aria-label={`Убрать ${product.name || `продукт ${index + 1}`} из списка`} onClick={() => { setProducts(previous => previous.filter(item => item.id !== product.id)); setError(''); }}><Trash2 size={16}/><span>Убрать</span></button></div>
+        return <li key={product.id} className={duplicate ? 'fridge-intake-product duplicate' : 'fridge-intake-product'}><div className="fridge-intake-product-top"><label className="fridge-intake-select"><input type="checkbox" checked={selected} disabled={Boolean(duplicate)} onChange={event => editProduct(product.id, { selected: event.target.checked })} aria-label={`Сохранить ${product.name || `продукт ${index + 1}`}`}/><span>{existing ? updateMode === 'add' ? 'Пополнить' : 'Обновить' : 'Добавить'}</span></label><button type="button" className="fridge-intake-remove" aria-label={`Убрать ${product.name || `продукт ${index + 1}`} из списка`} onClick={() => { setProducts(previous => previous.filter(item => item.id !== product.id)); setError(''); }}><Trash2 size={16}/><span>Убрать</span></button></div>
           <div className="fridge-intake-fields"><label className="fridge-intake-product-name" htmlFor={`${rowId}-name`}><span>Продукт</span><input id={`${rowId}-name`} value={product.name} maxLength={60} onChange={event => editProduct(product.id, { name: event.target.value })}/></label><label htmlFor={`${rowId}-amount`}><span>Количество</span><input id={`${rowId}-amount`} inputMode="decimal" value={product.amountText} maxLength={15} onChange={event => editProduct(product.id, { amountText: event.target.value })} placeholder="Не указано"/></label><label htmlFor={`${rowId}-unit`}><span>Единица</span><select id={`${rowId}-unit`} value={product.unit} onChange={event => editProduct(product.id, { unit: event.target.value })}>{fridgeUnits.map(unit => <option value={unit} key={unit}>{unit || 'Не указана'}</option>)}</select></label><label className="fridge-intake-product-category" htmlFor={`${rowId}-category`}><span>Категория</span><select id={`${rowId}-category`} value={product.category} onChange={event => editProduct(product.id, { category: event.target.value as FridgeCategory })}>{fridgeCategories.map(category => <option value={category} key={category}>{category}</option>)}</select></label></div>
+          {selected && preview && <p className="fridge-intake-stock-preview">{preview.note}</p>}
           {(duplicate || product.note || (selected && validation)) && <div className="fridge-intake-product-notes">{duplicate && <p>{duplicate}</p>}{product.note && <p>{product.note}</p>}{selected && validation && <p className="fridge-intake-row-error">{validation}</p>}</div>}
         </li>;
       })}</ol>}
-      <div className="fridge-intake-review-actions"><button type="button" className="button primary" disabled={!selectedCount || invalidSelected || busy || voiceActive} onClick={confirm}><Check size={18}/> Добавить {selectedCount} {productWord(selectedCount)}</button><button type="button" className="button secondary" onClick={cancelReview}>{mode === 'receipt' ? 'Вернуться к фото чека' : 'Вернуться к исходному списку'}</button></div>
+      <div className="fridge-intake-review-actions"><button type="button" className="button primary" disabled={!selectedCount || invalidSelected || busy || voiceActive} onClick={confirm}><Check size={18}/> Сохранить {selectedCount} {productWord(selectedCount)}</button><button type="button" className="button secondary" onClick={cancelReview}>{mode === 'receipt' ? 'Вернуться к фото чека' : 'Вернуться к исходному списку'}</button></div>
       <p className="fridge-intake-note">Сроки годности не угадываем. Их можно добавить в карточках продуктов после сохранения.</p>
     </div>}
     {error && <div className="fridge-intake-error" role="alert"><p>{error}</p></div>}

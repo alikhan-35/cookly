@@ -36,7 +36,7 @@ function RacionRecipeDetail({ id }: { id: string }) {
   const backTo = catalogSearch === undefined ? '/recipes' : `/catalog${catalogSearch}`;
   const [completed, setCompleted] = useState<number[]>([]);
   const [photoFailed, setPhotoFailed] = useState(false);
-  const stock = navigationState.comparisonStock ?? (source === 'fridge' || rawIngredients.length > 0 ? rawIngredients : usableNames);
+  const stock = source === 'fridge' && catalogSearch === undefined ? usableNames : navigationState.comparisonStock ?? (rawIngredients.length > 0 ? rawIngredients : usableNames);
   const allowed = Boolean(recipe && recipe.ingredients.every(item => isIngredientAllowed(item.name, profile)));
   const match = useMemo(() => recipe ? matchRacionIngredients(recipe.ingredients, stock, { assumePantryStaples }) : null, [recipe, stock, assumePantryStaples]);
   const category = recipe ? racionCategory(recipe) : 'Рецепт';
@@ -57,7 +57,7 @@ function RacionRecipeDetail({ id }: { id: string }) {
       recipe_id: analyticsId, recipe_category: category, number_of_servings: servings,
       ...(recipe.timeMinutes !== null ? { cooking_time: recipe.timeMinutes } : {}),
     });
-    navigate(`/cook/racion/${encodeURIComponent(id)}`, { state: navigationState });
+    navigate(`/cook/racion/${encodeURIComponent(id)}`, { state: { ...navigationState, cookingServings: servings } });
   }
   return <div className="container recipe-detail-page racion-recipe-page">
     <Link className="back-link" to={backTo} state={navigationState}><ArrowLeft size={16}/> {catalogSearch === undefined ? 'К подборке блюд' : 'К каталогу рецептов'}</Link>

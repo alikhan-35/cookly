@@ -1,29 +1,36 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowDown, ArrowUpRight, Check, CookingPot, Leaf, ListPlus, MousePointer2 } from 'lucide-react';
-import { FoodArt } from '../components/FoodArt';
+import { ArrowRight, Camera, CookingPot, Refrigerator } from 'lucide-react';
 import { IngredientForm } from '../components/IngredientForm';
-import { Eyebrow } from '../components/Layout';
-import { RecipeCard } from '../components/RecipeCard';
-import { recipes } from '../data/recipes';
 import { useFridge } from '../hooks/useFridge';
 import { usePantry } from '../hooks/usePantry';
-import { useToast } from '../hooks/useToast';
 import { trackEvent } from '../services/analytics';
 
 export function HomePage() {
   const navigate = useNavigate();
   const { usableNames } = useFridge();
   const { replaceIngredients } = usePantry();
-  const { toast } = useToast();
-  useEffect(() => { document.title = 'Cookly — что приготовить сегодня?'; }, []);
-  return <div className="container">
-    <section className="hero" aria-labelledby="hero-title"><div className="hero-copy"><Eyebrow>Хороший ужин начинается дома</Eyebrow><h1 id="hero-title">Что приготовить<br/><span>сегодня?</span><svg className="title-spark" viewBox="0 0 40 40" aria-hidden="true"><path d="m21 2-3 11M37 13l-12 6M34 33l-10-6" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg></h1><p>Укажите продукты, которые есть дома —<br className="desktop-break"/> Cookly предложит подходящие блюда<br className="desktop-break"/> и покажет, как их приготовить.</p><a className="hero-anchor" href="#pantry" onClick={e => { e.preventDefault(); document.getElementById('pantry')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('ingredient-input')?.focus({ preventScroll: true }); }}>Заглянем в холодильник? <ArrowDown size={15}/></a></div>
-      <div className="hero-visual"><div className="hero-orbit"/><span className="handwritten">Вкусное уже рядом<svg viewBox="0 0 85 40" aria-hidden="true"><path d="M2 3q25 40 73 19m-13-6 17 4-8 13"/></svg></span><FoodArt hero/><div className="floating-note note-fresh"><span className="note-icon"><Leaf size={19}/></span><div><strong>Из ваших продуктов</strong><span>Просто, по-домашнему</span></div></div><div className="floating-note note-recipes"><span className="note-icon peach"><CookingPot size={20}/></span><div><strong>Большой каталог рецептов</strong><span>На русском · на каждый день</span></div></div><span className="hero-dot dot-one"/><span className="hero-dot dot-two"/><span className="tiny-spark">✳</span></div>
+  useEffect(() => { document.title = 'Cookly — что приготовить из ваших продуктов'; }, []);
+  function useStock() {
+    replaceIngredients(usableNames, 'fridge');
+    trackEvent('fridge_used_for_search', { search_source: 'fridge' });
+    trackEvent('recommendations_requested', { search_source: 'fridge' });
+    navigate('/recipes');
+  }
+  return <div className="container home-page">
+    <section className="home-hero" aria-labelledby="hero-title">
+      <div className="home-hero-copy"><span className="home-kicker">ДОМА ВКУСНЕЕ</span>
+        <h1 id="hero-title">Хороший ужин<br/>уже <em>у вас дома.</em></h1>
+        <p>Найдём, что приготовить из ваших продуктов.<br className="desktop-break"/> Меньше лишних покупок, больше любимой еды.</p>
+        <div className="home-hero-actions">{usableNames.length > 0
+          ? <button className="button primary" onClick={useStock}>Подобрать блюда <ArrowRight size={18}/></button>
+          : <a className="button primary" href="#pantry" onClick={event => { event.preventDefault(); document.getElementById('pantry')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); document.getElementById('ingredient-input')?.focus({ preventScroll: true }); }}>Что приготовить? <ArrowRight size={18}/></a>}
+          <Link className="home-catalog-link" to="/catalog">Посмотреть рецепты <ArrowRight size={16}/></Link></div>
+        {usableNames.length > 0 && <Link className="home-stock-link" to="/fridge"><Refrigerator size={16}/> В холодильнике: {usableNames.length} продуктов</Link>}
+      </div>
+      <div className="home-hero-photo"><img src="https://racion.app/images/recipes/buckwheat_merchant.webp" alt="Гречка по-купечески с мясом и овощами" fetchPriority="high" referrerPolicy="no-referrer"/><a className="home-photo-source" href="https://racion.app/recipe/buckwheat_merchant" target="_blank" rel="noreferrer">Гречка по-купечески · «Рацион»</a><span className="home-photo-caption"><CookingPot size={18}/> Простые продукты. Настоящая еда.</span></div>
     </section>
-    <IngredientForm/>{usableNames.length > 0 && <div className="home-fridge-cta"><span><span className="home-fridge-icon"><CookingPot size={18}/></span><span><strong>Уже ведёте продукты в Cookly?</strong><small>{usableNames.length} продуктов с актуальным сроком в холодильнике</small></span></span><button className="button secondary" onClick={() => { replaceIngredients(usableNames, 'fridge'); trackEvent('fridge_used_for_search', { search_source: 'fridge' }); trackEvent('recommendations_requested', { search_source: 'fridge' }); toast('Продукты из холодильника добавлены в подбор'); navigate('/recipes'); }}>Использовать мой холодильник <ArrowUpRight size={16}/></button></div>}
-    <section className="inspiration" aria-labelledby="inspiration-title"><div className="section-heading"><div><span className="overline">ПРОСТО И СО ВКУСОМ</span><h2 id="inspiration-title">Немного вдохновения</h2></div><Link className="catalog-home-link" to="/catalog">Все рецепты <ArrowUpRight size={16}/></Link></div><div className="recipe-grid">{recipes.slice(0,3).map(recipe => <RecipeCard key={recipe.id} recipe={recipe}/>)}</div></section>
-    <section className="how-section" id="how-it-works" aria-labelledby="how-title"><div className="how-intro"><Eyebrow>Без лишних хлопот</Eyebrow><h2 id="how-title">От «что приготовить?»<br/>до «как вкусно!»</h2><p>Три простых шага к домашнему ужину.</p></div><div className="how-steps">{[{icon:ListPlus,title:'Добавьте продукты',text:'Расскажите, что есть в холодильнике.'},{icon:MousePointer2,title:'Выберите блюдо',text:'Найдите свой вариант среди рекомендаций.'},{icon:CookingPot,title:'Готовьте с удовольствием',text:'Следуйте понятному рецепту шаг за шагом.'}].map((step,i) => <div className="how-step" key={step.title}><span className="how-icon"><step.icon size={21}/></span><span className="step-index">0{i+1}</span><h3>{step.title}</h3><p>{step.text}</p></div>)}</div></section>
-    <div className="closing-line"><Check size={15}/><span>Простые продукты</span><span className="dot-separator">·</span><span>Понятные рецепты</span><span className="dot-separator">·</span><span>Каждый день <ArrowUpRight size={13}/></span></div>
+    <IngredientForm/>
+    <section className="home-fridge-invitation" aria-labelledby="home-fridge-title"><span className="home-fridge-invitation-icon"><Camera size={25}/></span><div><h2 id="home-fridge-title">Покупки уже в холодильнике?</h2><p>Добавьте продукты списком, голосом или по фото чека. Cookly запомнит их для следующего ужина.</p></div><Link className="button secondary" to="/fridge">Мой холодильник <ArrowRight size={17}/></Link></section>
   </div>;
 }

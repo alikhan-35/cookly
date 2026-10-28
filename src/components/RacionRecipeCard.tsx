@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, ArrowUpRight, Check, Clock3, Flame, ImageOff, LoaderCircle, ShieldAlert } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, Clock3, ImageOff, LoaderCircle, ShieldAlert } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useProfile } from '../hooks/useProfile';
 import { usePantry } from '../hooks/usePantry';
@@ -82,14 +82,12 @@ export function RacionRecipeCard({ recipe, stock: comparisonStock, waitSeconds =
     <h3><Link to={recipePath} state={returnState}>{recipe.title}</Link></h3>
     <div className="racion-card-meta">
       {recipe.timeMinutes !== null && <span><Clock3 size={14}/>{numberFormat.format(recipe.timeMinutes)} мин</span>}
-      {recipe.caloriesPerPortion !== null && <span><Flame size={14}/>{Math.round(recipe.caloriesPerPortion)} ккал/порцию</span>}
     </div>
     {restrictedNames.length > 0 && <div className="racion-profile-warning"><ShieldAlert size={17}/><p><strong>Не подходит ограничениям профиля</strong><span>{restrictedNames.join(', ')}</span></p></div>}
     {!ingredients && hasProfileRestrictions && <p className="racion-profile-pending">Ограничения питания ещё не сверены с составом.</p>}
     {match && comparisonStock !== undefined && <div className={`racion-match ${match.fullyMatched ? 'complete' : ''}`}>
-      <strong>{match.fullyMatched ? <><Check size={15}/> Продукты для блюда есть</> : `Есть ${match.matchedCount} из ${match.totalCount} учитываемых продуктов`}</strong>
-      <span>{match.fullyMatched ? `Есть ${match.matchedCount} из ${match.totalCount} учитываемых продуктов` : `Нет в наборе: ${match.missingCount}`}{match.unknownCount > 0 && ` · Уточнить: ${match.unknownCount}`}</span>
-      <span>{assumePantryStaples ? 'Соль, вода, растительное масло и обычные специи не входят в подсчёт.' : 'В подсчёте учитывается весь состав, включая базовые продукты.'}</span>
+      <strong>{match.fullyMatched ? <><Check size={15}/> Все продукты есть</> : `Есть ${match.matchedCount} из ${match.totalCount} продуктов`}</strong>
+      <span>{match.fullyMatched ? 'Проверьте количество перед готовкой' : `Не хватает: ${[...match.missing, ...match.unknown].map(item => item.name).join(', ')}`}{match.unknownCount > 0 && ` · Уточнить: ${match.unknownCount}`}</span>
     </div>}
     <button className="racion-inspect" disabled={loading || (!ingredients && waitSeconds > 0)} aria-expanded={open} onClick={() => void inspect()}>
       {loading ? <><LoaderCircle className="spin" size={15}/> Проверяем состав…</> : ingredients ? open ? 'Скрыть состав' : 'Показать состав' : stock.length ? 'Сверить состав с продуктами' : 'Посмотреть состав'}

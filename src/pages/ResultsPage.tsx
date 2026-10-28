@@ -1,29 +1,27 @@
-import { useEffect, useMemo } from 'react';
-import { ArrowLeft, ArrowRight, Clock3, CookingPot, SlidersHorizontal } from 'lucide-react';
+import { useEffect } from 'react';
+import { ArrowLeft, ArrowRight, Clock3, SlidersHorizontal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePantry } from '../hooks/usePantry';
-import { useProfile } from '../hooks/useProfile';
-import { useFeedback } from '../hooks/useFeedback';
-import { recipes } from '../data/recipes';
-import { recommendRecipes } from '../utils/recommendations';
-import { RecipeCard } from '../components/RecipeCard';
+import { useFridge } from '../hooks/useFridge';
 import { Eyebrow } from '../components/Layout';
-import { servingsLabel } from '../utils/servings';
 import { RacionRecommendations } from '../components/RacionRecommendations';
 import { PantryPolicyControl } from '../components/PantryPolicyControl';
 
 export function ResultsPage() {
-  const { ingredients, rawIngredients, source, maxTime, setMaxTime, replaceIngredients, assumePantryStaples } = usePantry();
-  const { profile } = useProfile();
-  const { feedback } = useFeedback();
-  const matches = useMemo(() => recommendRecipes(recipes, ingredients, maxTime, 5, profile, feedback, { assumePantryStaples }), [ingredients, maxTime, profile, feedback, assumePantryStaples]);
+  const { rawIngredients, source, maxTime, setMaxTime } = usePantry();
+  const { usableNames } = useFridge();
+  const stock = source === 'fridge' ? usableNames : rawIngredients;
+  const editTo = source === 'fridge' ? '/fridge' : '/#pantry';
   useEffect(() => { document.title = 'Ваши блюда — Cookly'; }, []);
-  return <div className="container results-page"><Link className="back-link" to="/#pantry"><ArrowLeft size={16}/> Изменить продукты</Link><div className="results-heading"><div><Eyebrow>Домашнее — самое вкусное</Eyebrow><h1>Вот что можно<br className="mobile-break"/> приготовить<span className="colored-dot">.</span></h1><p>Мы подобрали блюда на основе ваших продуктов.</p></div><Link className="catalog-home-link" to="/catalog">Открыть весь каталог <ArrowRight size={15}/></Link></div>
-    <div className="results-toolbar"><div className="result-ingredients"><span className="toolbar-label">У вас есть</span>{ingredients.length ? rawIngredients.map(name => <span className="simple-chip" key={name}>{name}</span>) : <span>Пока ничего не добавлено</span>}<small className="results-source">{source === 'fridge' ? 'Источник: мой холодильник' : 'Временный список поиска'}</small></div><Link to="/#pantry" className="text-button"><SlidersHorizontal size={15}/> Изменить</Link></div>
-    {maxTime && <div className="time-summary"><Clock3 size={15}/> До {maxTime} минут <button onClick={() => setMaxTime(null)}>Убрать ограничение</button></div>}
+  return <div className="container results-page">
+    <Link className="back-link" to={editTo}><ArrowLeft size={16}/> Изменить продукты</Link>
+    <div className="results-heading"><div><Eyebrow>Ваши продукты — новые идеи</Eyebrow><h1>Что приготовим<span className="colored-dot">?</span></h1><p>Лучшие совпадения — первыми. Всё есть дома или осталось докупить немного.</p></div><Link className="catalog-home-link" to="/catalog">Весь каталог <ArrowRight size={15}/></Link></div>
+    <div className="results-toolbar">
+      <details className="results-stock-details"><summary>Ваш список · {stock.length}</summary><div className="result-ingredients">{stock.length ? stock.map(name => <span className="simple-chip" key={name}>{name}</span>) : <span>Пока ничего не добавлено</span>}</div></details>
+      <Link to={editTo} className="text-button"><SlidersHorizontal size={15}/> Изменить</Link>
+    </div>
+    {maxTime !== null && <div className="time-summary"><Clock3 size={15}/> До {maxTime} минут <button onClick={() => setMaxTime(null)}>Убрать ограничение</button></div>}
     <PantryPolicyControl/>
-    <RacionRecommendations stock={rawIngredients} maxTime={maxTime} source={source} localRecommendationIds={matches.map(match => match.recipe.id)}/>
-    <h2 className="local-recipes-heading">Из домашней коллекции Cookly</h2>
-    {matches.length ? <><div className="profile-match-note"><SlidersHorizontal size={15}/><span>{servingsLabel(profile.familySize)} по профилю · {profile.difficulty === 'Любые' ? 'любая сложность' : profile.difficulty.toLocaleLowerCase('ru')}</span><em>Профиль учитывается</em></div><div className="recipe-grid results-grid">{matches.map((match, index) => <RecipeCard key={match.recipe.id} recipe={match.recipe} match={match} analyticsContext={{ recommendation_position: index + 1, missing_ingredients_count: match.missing.length, matched_ingredients_count: match.matchedCount, search_source: source }}/>)}</div><p className="results-footnote">Сначала — блюда, для которых нужно меньше покупок. Счётчик учитывает уникальные продукты и выбранное правило для базовых продуктов.</p>{matches.length < 3 && <div className="more-ideas"><p>Пока нашли {matches.length === 1 ? 'один подходящий рецепт' : 'два подходящих рецепта'}. Добавьте ещё продукты{maxTime ? ' или увеличьте время' : ''}, чтобы получить больше вариантов.</p><Link to="/#pantry">Изменить продукты <ArrowRight size={15}/></Link></div>}</> : <div className="empty-state"><span className="empty-icon"><CookingPot size={36}/></span><h2>{ingredients.length ? 'Пока нет подходящего блюда' : 'Начнём с ваших продуктов'}</h2><p>{ingredients.length ? 'В домашней коллекции пока нет совпадений. Попробуйте другие продукты или большой каталог выше.' : 'Укажите, что есть дома, и мы поможем придумать вкусный обед или ужин.'}</p><div className="empty-actions"><Link to="/#pantry" className="button primary">{ingredients.length ? 'Изменить продукты' : 'Добавить продукты'} <ArrowRight size={17}/></Link>{source === 'fridge' && <button className="button secondary" onClick={() => replaceIngredients([], 'manual')}>Очистить список</button>}{maxTime && <button className="button secondary" onClick={() => setMaxTime(null)}>Показать без лимита времени</button>}</div></div>}
+    <RacionRecommendations stock={stock} maxTime={maxTime} source={source}/>
   </div>;
 }

@@ -1,4 +1,4 @@
-import { ArrowUpRight, Heart, Leaf, UserRound } from 'lucide-react';
+import { Heart, Leaf, UserRound } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Logo } from './Logo';
@@ -18,7 +18,7 @@ export function Layout() {
     <header className="site-header"><div className="container header-inner">
       <Link to="/" aria-label="Cookly — на главную"><Logo /></Link>
       <nav aria-label="Основная навигация"><NavLink to="/" end>Главная</NavLink><NavLink to="/fridge">Мой холодильник</NavLink><NavLink to="/catalog">Рецепты</NavLink></nav>
-      <div className="header-actions"><button className="profile-button" aria-label="Мой профиль" onClick={() => setProfileOpen(true)}><UserRound className="profile-mobile-icon" size={16} aria-hidden="true"/><span>Мой профиль</span></button><Link className="header-cta" to="/#pantry">Начнём готовить <ArrowUpRight size={16}/></Link></div>
+      <div className="header-actions"><button className="profile-button" aria-label="Настройки питания" onClick={() => setProfileOpen(true)}><UserRound className="profile-mobile-icon" size={18} aria-hidden="true"/><span>Настройки питания</span></button></div>
     </div></header>
     <main id="main" tabIndex={-1}><Outlet /></main>
     <footer className="site-footer container">

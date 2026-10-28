@@ -103,10 +103,9 @@ export function RacionCatalogPage() {
     <Link className="back-link" to="/"><ArrowLeft size={16}/> На главную</Link>
     <header className="racion-hero">
       <div><span className="preview-badge"><BookOpen size={13}/> Каталог рецептов</span>
-        <h1>Знакомые блюда.<br/><span>Новые идеи на каждый день.</span></h1>
-        <p>Курица, гречка, картофель, домашние супы и завтраки. Ищите на русском и сверяйте состав с тем, что есть дома.</p>
+        <h1>Рецепты на каждый день</h1>
+        <p>Знакомые блюда и новые сочетания. Найдите свой следующий завтрак, обед или ужин.</p>
       </div>
-      <div className="racion-hero-note"><CookingPot size={31}/><strong>По-домашнему</strong><span>Рецепты на русском<br/>из каталога «Рациона»</span></div>
     </header>
 
     <section className="racion-search" aria-labelledby="racion-search-heading">
@@ -120,7 +119,7 @@ export function RacionCatalogPage() {
       <p>Ищите по названию блюда или продуктам. Наличие ингредиентов можно сверить с вашим набором.</p>
     </section>
 
-    <details className="racion-stock" open={stock.length > 0 || undefined}>
+    <details className="racion-stock" >
       <summary><Refrigerator size={19}/><span>Мои продукты для сверки</span><small>{stock.length ? `Выбрано: ${stock.length}` : 'Добавить или взять пример'}</small></summary>
       <div className="racion-stock-body"><div className="racion-stock-top"><p>Эти продукты сравниваются с составом после нажатия «Сверить состав».</p>{usableNames.length > 0 ? <button className="racion-text-button" onClick={() => { setStock(usableNames); setStockError(''); }}>Взять из моего холодильника</button> : <Link to="/fridge">Открыть холодильник <ArrowUpRight size={14}/></Link>}</div>
         <div className="racion-quick">{examples.map(example => <button key={example.label} onClick={() => { setStock(example.names); setStockError(''); }}>{example.label}</button>)}</div>
