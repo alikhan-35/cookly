@@ -86,7 +86,7 @@ describe('Racion presence matching', () => {
 
   it('does not claim an empty recipe is complete or divide by zero', () => {
     expect(matchRacionIngredients([], ['Яйца'])).toEqual({
-      available: [], assumedPantry: [], missing: [], unknown: [], matchedCount: 0, totalCount: 0,
+      available: [], assumedPantry: [], compatible: [], compatibleCount: 0, missing: [], unknown: [], matchedCount: 0, totalCount: 0,
       missingCount: 0, unknownCount: 0, meaningfulMatchedCount: 0, coverage: 0, fullyMatched: false,
     });
   });

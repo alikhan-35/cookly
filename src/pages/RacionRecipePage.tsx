@@ -75,7 +75,7 @@ function RacionRecipeDetail({ id }: { id: string }) {
         <p className="muted">Количество пересчитано из состава на одну порцию. Размер посуды и время приготовления уточняйте по ходу готовки.</p>
         <PantryPolicyControl/>
         <RacionIngredientList ingredients={recipe.ingredients} servings={servings} stock={stock}/>
-        {match && <div className={match.fullyMatched ? 'all-ingredients-ready' : 'racion-stock-summary'}>{match.fullyMatched ? <><Check size={18}/> Продукты для блюда есть</> : <p>Есть {match.matchedCount} из {match.totalCount} учитываемых продуктов. Нет в списке: {match.missingCount}.{match.unknownCount > 0 ? ` Требуют сверки: ${match.unknownCount}.` : ''}</p>}</div>}
+        {match && <div className={match.fullyMatched ? 'all-ingredients-ready' : 'racion-stock-summary'}>{match.fullyMatched ? <><Check size={18}/> Продукты для блюда есть</> : <p>Есть {match.matchedCount} из {match.totalCount} учитываемых продуктов. Докупить: {match.missingCount + match.unknownCount}.{match.compatible.length > 0 ? ` Уточнить вид или часть: ${match.compatible.map(item => item.name).join(', ')}.` : ''}{match.unknownCount > 0 ? ` Требуют сверки: ${match.unknownCount}.` : ''}</p>}</div>}
         {match?.fullyMatched && <p className="racion-detail-note">Есть {match.matchedCount} из {match.totalCount} учитываемых продуктов.</p>}
         <p className="racion-detail-note">Показан полный состав источника. Количества запасов не проверяются. {assumePantryStaples ? 'Соль, вода, растительное масло и обычные специи не входят в подсчёт; их наличие уточните дома.' : 'В подсчёте учитывается весь состав, включая базовые продукты.'}</p>
         <Link className="text-button" to="/fridge">Открыть мой холодильник →</Link>
@@ -98,7 +98,7 @@ export function RacionRecipeState({ loading, error, retry, retryAfter, backTo = 
 export function RacionIngredientList({ ingredients, servings, stock }: { ingredients: RacionRecipeIngredient[]; servings: number; stock?: string[] }) {
   const { assumePantryStaples } = usePantry();
   const match = stock ? matchRacionIngredients(ingredients, stock, { assumePantryStaples }) : null;
-  return <ul className="effective-ingredients racion-detail-ingredients">{ingredients.map((item, index) => <li key={`${item.ingredientId}-${index}`}><div className="effective-ingredient-row"><div><strong>{item.name}</strong>{match && <small className={match.available.includes(item) ? 'ingredient-present' : ''}>{match.available.includes(item) ? 'Есть' : match.assumedPantry.includes(item) ? 'Базовый продукт' : match.unknown.includes(item) ? 'Уточнить' : 'Нет'}</small>}</div><span>{racionQuantity(item.amount, item.unit, servings)}</span></div></li>)}</ul>;
+  return <ul className="effective-ingredients racion-detail-ingredients">{ingredients.map((item, index) => <li key={`${item.ingredientId}-${index}`}><div className="effective-ingredient-row"><div><strong>{item.name}</strong>{match && <small className={match.available.includes(item) ? 'ingredient-present' : ''}>{match.available.includes(item) ? 'Есть' : match.compatible.includes(item) ? 'Уточнить вид/часть' : match.assumedPantry.includes(item) ? 'Базовый продукт' : match.unknown.includes(item) ? 'Уточнить' : 'Нет'}</small>}</div><span>{racionQuantity(item.amount, item.unit, servings)}</span></div></li>)}</ul>;
 }
 
 function RacionNutrition({ recipe }: { recipe: RacionRecipe }) {

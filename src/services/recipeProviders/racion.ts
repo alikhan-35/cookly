@@ -363,3 +363,6 @@ export async function getRacionRecipe(
   url.searchParams.set('lang', 'ru');
   return requestRacion(url, payload => adaptRecipe(payload, id), options.signal);
 }
+
+/** Strict shared adapter for cards retrieved by the official fridge form. */
+export function adaptRacionCandidateCard(value: unknown): RacionRecipeCard { return adaptCard(value); }

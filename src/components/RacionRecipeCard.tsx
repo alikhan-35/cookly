@@ -86,8 +86,8 @@ export function RacionRecipeCard({ recipe, stock: comparisonStock, waitSeconds =
     {restrictedNames.length > 0 && <div className="racion-profile-warning"><ShieldAlert size={17}/><p><strong>Не подходит ограничениям профиля</strong><span>{restrictedNames.join(', ')}</span></p></div>}
     {!ingredients && hasProfileRestrictions && <p className="racion-profile-pending">Ограничения питания ещё не сверены с составом.</p>}
     {match && comparisonStock !== undefined && <div className={`racion-match ${match.fullyMatched ? 'complete' : ''}`}>
-      <strong>{match.fullyMatched ? <><Check size={15}/> Все продукты есть</> : `Есть ${match.matchedCount} из ${match.totalCount} продуктов`}</strong>
-      <span>{match.fullyMatched ? 'Проверьте количество перед готовкой' : `Не хватает: ${[...match.missing, ...match.unknown].map(item => item.name).join(', ')}`}{match.unknownCount > 0 && ` · Уточнить: ${match.unknownCount}`}</span>
+      <strong>{match.fullyMatched ? <><Check size={15}/> Все продукты есть</> : `Подходят ${match.matchedCount} из ${match.totalCount} продуктов`}</strong>
+      <span>{match.fullyMatched ? 'Проверьте количество перед готовкой' : [match.missing.length || match.unknown.length ? `Докупить: ${[...match.missing, ...match.unknown].map(item => item.name).join(', ')}` : '', match.compatible.length ? `Уточнить вид/часть: ${match.compatible.map(item => item.name).join(', ')}` : ''].filter(Boolean).join(' · ')}{match.unknownCount > 0 && ` · Уточнить: ${match.unknownCount}`}</span>
     </div>}
     <button className="racion-inspect" disabled={loading || (!ingredients && waitSeconds > 0)} aria-expanded={open} onClick={() => void inspect()}>
       {loading ? <><LoaderCircle className="spin" size={15}/> Проверяем состав…</> : ingredients ? open ? 'Скрыть состав' : 'Показать состав' : stock.length ? 'Сверить состав с продуктами' : 'Посмотреть состав'}
@@ -98,7 +98,7 @@ export function RacionRecipeCard({ recipe, stock: comparisonStock, waitSeconds =
       <p>Состав и количества — по данным «Рациона».</p>
       <ul>{ingredients.map((ingredient, index) => <li key={`${ingredient.ingredientId}-${index}`}>
         <div><strong>{ingredient.name}</strong><span>{ingredient.amount === null ? 'Количество не указано' : `${numberFormat.format(ingredient.amount)} ${displayUnit(ingredient.unit)}`.trim()}</span></div>
-        {comparisonStock !== undefined && match && <small className={match.available.includes(ingredient) ? 'available' : match.assumedPantry.includes(ingredient) || match.unknown.includes(ingredient) ? 'unknown' : 'missing'}>{match.available.includes(ingredient) ? 'Есть' : match.assumedPantry.includes(ingredient) ? 'Базовый продукт' : match.unknown.includes(ingredient) ? 'Уточнить' : 'Нет'}</small>}
+        {comparisonStock !== undefined && match && <small className={match.available.includes(ingredient) ? 'available' : match.assumedPantry.includes(ingredient) || match.compatible.includes(ingredient) || match.unknown.includes(ingredient) ? 'unknown' : 'missing'}>{match.available.includes(ingredient) ? 'Есть' : match.compatible.includes(ingredient) ? 'Уточнить вид/часть' : match.assumedPantry.includes(ingredient) ? 'Базовый продукт' : match.unknown.includes(ingredient) ? 'Уточнить' : 'Нет'}</small>}
       </li>)}</ul>
       <p>Показан полный состав источника. Сверяется наличие продуктов, без проверки достаточного количества и замен.</p>
     </div>}

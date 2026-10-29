@@ -1,0 +1,600 @@
+{
+  "capturedOn": "2026-10-28",
+  "note": "Public source responses captured for the exact Cookly user-stock regression. Fields are copied from the live API, not invented. Nonessential source fields omitted.",
+  "stock": [
+    "Рис",
+    "Картофель",
+    "Яйца",
+    "Говядина",
+    "Баранина",
+    "Сёмга",
+    "Капуста",
+    "Мандарины",
+    "Масло сливочное",
+    "Сельдь",
+    "Сыр",
+    "Гречка"
+  ],
+  "records": [
+    {
+      "url": "https://racion.app/api/recipes/side_buckwheat?lang=ru&country=KZ",
+      "status": 200,
+      "recipe": {
+        "id": "side_buckwheat",
+        "title": "Гречка с маслом",
+        "slot": "dinner",
+        "timeMin": 20,
+        "image": "/images/recipes/side_buckwheat.webp",
+        "kcal": 278.94,
+        "protein": 8.859999999999998,
+        "fat": 8.91,
+        "carb": 43.464,
+        "ingredients": [
+          {
+            "ingredientId": "buckwheat",
+            "name": "Гречка",
+            "amount": 70,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/buckwheat.webp"
+          },
+          {
+            "ingredientId": "butter",
+            "name": "Масло сливочное",
+            "amount": 8,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/butter.webp"
+          },
+          {
+            "ingredientId": "salt",
+            "name": "Соль",
+            "amount": 1.5,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/salt.webp"
+          }
+        ],
+        "steps": [
+          "Гречку перебрать, промыть и прогреть на сухой сковороде минуту до орехового запаха.",
+          "Залить водой 1:2, посолить, довести до кипения, варить под крышкой на слабом огне 15 минут до впитывания воды.",
+          "Положить масло, накрыть и дать постоять 5 минут."
+        ],
+        "tags": [
+          "side",
+          "vegetarian",
+          "kids",
+          "quick",
+          "pp"
+        ],
+        "description": "Гречка к мясу, птице, тефтелям и грибам. Обжарить сухую крупу минуту — будет ароматнее и рассыпчатее."
+      }
+    },
+    {
+      "url": "https://racion.app/api/recipes/side_rice_butter?lang=ru&country=KZ",
+      "status": 200,
+      "recipe": {
+        "id": "side_rice_butter",
+        "title": "Рис отварной с маслом",
+        "slot": "dinner",
+        "timeMin": 20,
+        "image": "/images/recipes/side_rice_butter.webp",
+        "kcal": 300.64,
+        "protein": 4.7299999999999995,
+        "fat": 7.090000000000001,
+        "carb": 55.294000000000004,
+        "ingredients": [
+          {
+            "ingredientId": "rice",
+            "name": "Рис длиннозёрный",
+            "amount": 70,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/rice.webp"
+          },
+          {
+            "ingredientId": "butter",
+            "name": "Масло сливочное",
+            "amount": 8,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/butter.webp"
+          },
+          {
+            "ingredientId": "salt",
+            "name": "Соль",
+            "amount": 1.5,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/salt.webp"
+          }
+        ],
+        "steps": [
+          "Рис промыть в холодной воде 3–4 раза, пока вода не станет прозрачной.",
+          "Залить водой 1:1,5, посолить, довести до кипения, убавить огонь до минимума и варить под крышкой 15 минут, не открывая.",
+          "Снять с огня, положить масло, накрыть и дать постоять 5 минут; перемешать вилкой."
+        ],
+        "tags": [
+          "side",
+          "vegetarian",
+          "kids",
+          "quick"
+        ],
+        "description": "Рассыпчатый рис — гарнир ко всему: к котлетам, рыбе, курице. Промыть до прозрачной воды, варить под крышкой без помешивания."
+      }
+    },
+    {
+      "url": "https://racion.app/api/recipes/vr_cloud_eggs?lang=ru&country=KZ",
+      "status": 200,
+      "recipe": {
+        "id": "vr_cloud_eggs",
+        "title": "Яйца в облаке из взбитого белка",
+        "slot": "breakfast",
+        "timeMin": 18,
+        "image": "/images/recipes/vr_cloud_eggs.webp",
+        "kcal": 231.31,
+        "protein": 17.900000000000002,
+        "fat": 16.233,
+        "carb": 1.58,
+        "ingredients": [
+          {
+            "ingredientId": "eggs",
+            "name": "Яйца куриные",
+            "amount": 2,
+            "unit": "pcs",
+            "pantry": false,
+            "image": "/images/ingredients/eggs.webp"
+          },
+          {
+            "ingredientId": "cheese_hard",
+            "name": "Сыр твёрдый",
+            "amount": 20,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/cheese_hard.webp"
+          },
+          {
+            "ingredientId": "salt",
+            "name": "Соль",
+            "amount": 1,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/salt.webp"
+          },
+          {
+            "ingredientId": "black_pepper",
+            "name": "Перец чёрный молотый",
+            "amount": 1,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/black_pepper.webp"
+          }
+        ],
+        "steps": [
+          "Разогреть духовку до 180 °C.",
+          "Разделить яйца на белки и желтки, желтки оставить целыми.",
+          "Взбить белки с солью миксером 3–4 минуты до плотных пиков.",
+          "Аккуратно вмешать тёртый сыр и чёрный перец.",
+          "Выложить белки на пергамент двумя гнёздами с углублением в центре.",
+          "Запекать 5 минут, пока белки слегка схватятся.",
+          "Положить желтки в углубления и запекать ещё 3 минуты до мягкого желтка."
+        ],
+        "tags": [
+          "vegetarian",
+          "pp"
+        ],
+        "description": "Белки взбиваются в пышные гнёзда, а желток запекается в середине. Лёгкий белковый завтрак с тёртым сыром и мягкой серединой."
+      }
+    },
+    {
+      "url": "https://racion.app/api/recipes/kd_potato_smiles?lang=ru&country=KZ",
+      "status": 200,
+      "recipe": {
+        "id": "kd_potato_smiles",
+        "title": "Картофельные смайлики",
+        "slot": "snack",
+        "timeMin": 45,
+        "image": "/images/recipes/kd_potato_smiles.webp",
+        "kcal": 295.15,
+        "protein": 6.731999999999999,
+        "fat": 6.665000000000001,
+        "carb": 50.43,
+        "ingredients": [
+          {
+            "ingredientId": "potato",
+            "name": "Картофель",
+            "amount": 180,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/potato.webp"
+          },
+          {
+            "ingredientId": "eggs",
+            "name": "Яйца куриные",
+            "amount": 0.25,
+            "unit": "pcs",
+            "pantry": false,
+            "image": "/images/ingredients/eggs.webp"
+          },
+          {
+            "ingredientId": "starch",
+            "name": "Крахмал",
+            "amount": 12,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/starch.webp"
+          },
+          {
+            "ingredientId": "flour",
+            "name": "Мука пшеничная",
+            "amount": 15,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/flour.webp"
+          },
+          {
+            "ingredientId": "sunflower_oil",
+            "name": "Масло подсолнечное",
+            "amount": 5,
+            "unit": "ml",
+            "pantry": true,
+            "image": "/images/ingredients/sunflower_oil.webp"
+          },
+          {
+            "ingredientId": "salt",
+            "name": "Соль",
+            "amount": 1,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/salt.webp"
+          }
+        ],
+        "steps": [
+          "Очистить картофель, нарезать кусками и отварить в подсоленной воде 15–18 минут до мягкости.",
+          "Слить воду, размять картофель в густое пюре и остудить 5 минут.",
+          "Добавить яйцо, крахмал и муку, замесить мягкую плотную массу.",
+          "Раскатать массу пластом толщиной около 1 см на присыпанной мукой поверхности.",
+          "Вырезать кружки, сделать глаза трубочкой или соломинкой, а улыбку продавить ложкой.",
+          "Разогреть духовку до 200 °C, переложить смайлики на бумагу и смазать маслом.",
+          "Запекать 20 минут при 200 °C, пока низ и края слегка подрумянятся."
+        ],
+        "tags": [
+          "vegetarian",
+          "festive",
+          "kids"
+        ],
+        "description": "Запечённые кружки из картофельного пюре с весёлыми мордочками. Хороши как мягкая овощная закуска без жарки во фритюре."
+      }
+    },
+    {
+      "url": "https://racion.app/api/recipes/ok_potato_dumplings?lang=ru&country=KZ",
+      "status": 200,
+      "recipe": {
+        "id": "ok_potato_dumplings",
+        "title": "Картофельные кнёдли с сухарями",
+        "slot": "dinner",
+        "timeMin": 55,
+        "image": "/images/recipes/ok_potato_dumplings.webp",
+        "kcal": 611.1500000000001,
+        "protein": 13.57,
+        "fat": 16.305,
+        "carb": 99.96000000000001,
+        "ingredients": [
+          {
+            "ingredientId": "potato",
+            "name": "Картофель",
+            "amount": 300,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/potato.webp"
+          },
+          {
+            "ingredientId": "starch",
+            "name": "Крахмал",
+            "amount": 25,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/starch.webp"
+          },
+          {
+            "ingredientId": "flour",
+            "name": "Мука пшеничная",
+            "amount": 20,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/flour.webp"
+          },
+          {
+            "ingredientId": "eggs",
+            "name": "Яйца куриные",
+            "amount": 0.5,
+            "unit": "pcs",
+            "pantry": false,
+            "image": "/images/ingredients/eggs.webp"
+          },
+          {
+            "ingredientId": "salt",
+            "name": "Соль",
+            "amount": 2,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/salt.webp"
+          },
+          {
+            "ingredientId": "nutmeg",
+            "name": "Мускатный орех",
+            "amount": 1,
+            "unit": "g",
+            "pantry": true
+          },
+          {
+            "ingredientId": "breadcrumbs",
+            "name": "Сухари панировочные",
+            "amount": 20,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/breadcrumbs.webp"
+          },
+          {
+            "ingredientId": "butter",
+            "name": "Масло сливочное",
+            "amount": 15,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/butter.webp"
+          }
+        ],
+        "steps": [
+          "Картофель очистить, нарезать и отварить в подсоленной воде 20 минут до мягкости.",
+          "Слить воду, обсушить картофель на слабом огне 1 минуту и размять в пюре, дать остыть 5 минут.",
+          "Добавить крахмал, муку, яйцо, мускатный орех и соль, быстро замесить мягкую плотную массу.",
+          "Влажными руками сформировать 3–4 шарика.",
+          "Опустить кнёдли в слабо кипящую подсоленную воду и варить 10–12 минут, пока они не всплывут и не станут упругими.",
+          "На сковороде растопить масло, подрумянить сухари 2–3 минуты и полить кнёдли перед подачей."
+        ],
+        "tags": [
+          "vegetarian",
+          "side",
+          "hearty",
+          "kids"
+        ],
+        "description": "Нежные картофельные шарики с мускатным орехом и сливочными сухарями. Это сытный гарнир к рульке, гуляшу или тушёной капусте."
+      }
+    },
+    {
+      "url": "https://racion.app/api/recipes/fries_oven?lang=ru&country=KZ",
+      "status": 200,
+      "recipe": {
+        "id": "fries_oven",
+        "title": "Картофель фри в духовке",
+        "slot": "dinner",
+        "timeMin": 40,
+        "image": "/images/recipes/fries_oven.webp",
+        "kcal": 244.26600000000002,
+        "protein": 4.047,
+        "fat": 8.231,
+        "carb": 37.112,
+        "ingredients": [
+          {
+            "ingredientId": "potato",
+            "name": "Картофель",
+            "amount": 200,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/potato.webp"
+          },
+          {
+            "ingredientId": "starch",
+            "name": "Крахмал",
+            "amount": 5,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/starch.webp"
+          },
+          {
+            "ingredientId": "sunflower_oil",
+            "name": "Масло подсолнечное",
+            "amount": 8,
+            "unit": "ml",
+            "pantry": true,
+            "image": "/images/ingredients/sunflower_oil.webp"
+          },
+          {
+            "ingredientId": "salt",
+            "name": "Соль",
+            "amount": 1.5,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/salt.webp"
+          },
+          {
+            "ingredientId": "paprika",
+            "name": "Паприка",
+            "amount": 0.3,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/paprika.webp"
+          }
+        ],
+        "steps": [
+          "Картофель очистить и нарезать соломкой 1×1 см; залить холодной водой на 15 минут, чтобы вышел крахмал.",
+          "Слить воду и обсушить соломку полотенцем насухо — от этого зависит хруст.",
+          "Пересыпать крахмалом, затем перемешать с маслом и паприкой.",
+          "Выложить на противень с пергаментом в один слой, не касаясь друг друга.",
+          "Запекать при 220 °C 25–30 минут, перевернув один раз; посолить сразу после духовки."
+        ],
+        "tags": [
+          "side",
+          "vegetarian",
+          "kids"
+        ],
+        "description": "Тонкая соломка картофеля в крахмале и масле, запечённая до хруста без фритюра."
+      }
+    },
+    {
+      "url": "https://racion.app/api/recipes/buckwheat_egg_breakfast?lang=ru&country=KZ",
+      "status": 200,
+      "recipe": {
+        "id": "buckwheat_egg_breakfast",
+        "title": "Гречка с яйцом и зелёным луком",
+        "slot": "breakfast",
+        "timeMin": 25,
+        "image": "/images/recipes/buckwheat_egg_breakfast.webp",
+        "kcal": 327.24,
+        "protein": 14.003999999999998,
+        "fat": 13.887999999999998,
+        "carb": 38.12,
+        "ingredients": [
+          {
+            "ingredientId": "buckwheat",
+            "name": "Гречка",
+            "amount": 60,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/buckwheat.webp"
+          },
+          {
+            "ingredientId": "eggs",
+            "name": "Яйца куриные",
+            "amount": 1,
+            "unit": "pcs",
+            "pantry": false,
+            "image": "/images/ingredients/eggs.webp"
+          },
+          {
+            "ingredientId": "butter",
+            "name": "Масло сливочное",
+            "amount": 8,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/butter.webp"
+          },
+          {
+            "ingredientId": "green_onion",
+            "name": "Лук зелёный",
+            "amount": 8,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/green_onion.webp"
+          },
+          {
+            "ingredientId": "salt",
+            "name": "Соль",
+            "amount": 1,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/salt.webp"
+          }
+        ],
+        "steps": [
+          "Гречку промыть и залить 120 мл кипятка в кастрюле, посолить.",
+          "Накрыть крышкой и варить на слабом огне 15 минут, пока вода не впитается и крупа не станет рассыпчатой.",
+          "Снять с огня, добавить половину масла, перемешать и оставить под крышкой на 5 минут.",
+          "Зелёный лук нарезать кольцами. В сковороде растопить оставшееся масло и пожарить яйцо на среднем огне 3 минуты до схватившегося белка.",
+          "Гречку выложить на тарелку, сверху яйцо и лук, подать горячей."
+        ],
+        "tags": [
+          "pp",
+          "protein",
+          "vegetarian"
+        ],
+        "description": "Рассыпчатая гречка с маслом, сверху жареное яйцо и свежий зелёный лук."
+      }
+    },
+    {
+      "url": "https://racion.app/api/recipes/salmon_rice?lang=ru&country=KZ",
+      "status": 200,
+      "recipe": {
+        "id": "salmon_rice",
+        "title": "Лосось с рисом и брокколи",
+        "slot": "dinner",
+        "timeMin": 30,
+        "image": "/images/recipes/salmon_rice.webp",
+        "kcal": 713.1549999999999,
+        "protein": 38.60999999999999,
+        "fat": 33.7865,
+        "carb": 62.16,
+        "ingredients": [
+          {
+            "ingredientId": "salmon_fillet",
+            "name": "Филе лосося",
+            "amount": 150,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/salmon_fillet.webp"
+          },
+          {
+            "ingredientId": "rice",
+            "name": "Рис длиннозёрный",
+            "amount": 70,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/rice.webp"
+          },
+          {
+            "ingredientId": "broccoli",
+            "name": "Брокколи (заморозка)",
+            "amount": 120,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/broccoli.webp"
+          },
+          {
+            "ingredientId": "lemon",
+            "name": "Лимон",
+            "amount": 20,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/lemon.webp"
+          },
+          {
+            "ingredientId": "butter",
+            "name": "Масло сливочное",
+            "amount": 10,
+            "unit": "g",
+            "pantry": false,
+            "image": "/images/ingredients/butter.webp"
+          },
+          {
+            "ingredientId": "olive_oil",
+            "name": "Масло оливковое",
+            "amount": 5,
+            "unit": "ml",
+            "pantry": true,
+            "image": "/images/ingredients/olive_oil.webp"
+          },
+          {
+            "ingredientId": "salt",
+            "name": "Соль",
+            "amount": 2,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/salt.webp"
+          },
+          {
+            "ingredientId": "black_pepper",
+            "name": "Перец чёрный молотый",
+            "amount": 0.5,
+            "unit": "g",
+            "pantry": true,
+            "image": "/images/ingredients/black_pepper.webp"
+          }
+        ],
+        "steps": [
+          "Рис промыть, залить 140 мл холодной воды, посолить половиной соли, довести до кипения, накрыть крышкой и варить на малом огне 15 минут до мягкости и впитывания воды.",
+          "Лосось обсушить, посолить и поперчить с обеих сторон. Лимон разрезать: часть нарезать дольками, из остального выжать сок.",
+          "Сковороду разогреть на среднем огне с оливковым маслом. Выложить лосось кожей вниз и жарить 4–5 минут до золотистой корочки.",
+          "Лосось перевернуть и жарить ещё 3 минуты, пока мякоть не станет плотной и непрозрачной; снять с огня.",
+          "Брокколи не размораживая опустить в кипящую подсоленную воду на 5 минут до мягкости, откинуть на дуршлаг и заправить сливочным маслом и лимонным соком.",
+          "Рис выложить на тарелку, добавить брокколи и лосось, подать с дольками лимона."
+        ],
+        "tags": [
+          "fish",
+          "pp",
+          "protein"
+        ],
+        "description": "Филе лосося, обжаренное на сковороде, с отварным рисом и брокколи, заправленной сливочным маслом и лимонным соком."
+      }
+    }
+  ]
+}

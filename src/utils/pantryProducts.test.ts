@@ -26,3 +26,36 @@ describe('original pantry product labels', () => {
     expect(matchingProductKey('')).toBe('');
   });
 });
+
+
+describe('everyday fridge product identities', () => {
+  it.each([
+    ['Рис', 'Рисовая крупа'],
+    ['Картофель', 'Картошка'],
+    ['Яйца', 'Куриные яйца'],
+    ['Говядина', 'Говяжье мясо'],
+    ['Баранина', 'Баранье мясо'],
+    ['Сёмга', 'Атлантический лосось'],
+    ['капуста', 'Капуста белокочанная'],
+    ['Мандарины', 'Мандарин'],
+    ['Масло сливочное', 'Сливочное масло'],
+    ['Сельдь', 'Селёдка'],
+    ['Сыр', 'Cheese'],
+    ['Гречка', 'Гречневая крупа'],
+    ['Сыр твердый', 'Твёрдый сыр'],
+  ])('recognizes %s and %s as the same product', (stock, source) => {
+    expect(matchingProductKey(stock)).toBe(matchingProductKey(source));
+  });
+
+  it.each([
+    ['Баранина', 'Бараний фарш'],
+    ['Сёмга', 'Лосось'],
+    ['Сёмга', 'Сёмга слабосолёная'],
+    ['Сельдь', 'Сельдь солёная'],
+    ['Сыр', 'Твёрдый сыр'],
+    ['Твёрдый сыр', 'Моцарелла'],
+    ['Капуста', 'Квашеная капуста'],
+  ])('does not merge inventory cards for %s and %s', (first, second) => {
+    expect(matchingProductKey(first)).not.toBe(matchingProductKey(second));
+  });
+});

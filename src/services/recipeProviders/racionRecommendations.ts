@@ -2,6 +2,7 @@ import type { UserProfile } from '../../types';
 import { hasDislikedIngredient, isIngredientAllowed } from '../../utils/ingredients';
 import { isPantryStaple, type MatchingOptions } from '../../utils/matchingPolicy';
 import { matchingProductKey } from '../../utils/pantryProducts';
+import { racionSourceProductName } from './racionCompatibility';
 import { matchRacionIngredients } from './racionMatching';
 import type { RacionRecipe } from './racion';
 
@@ -34,8 +35,9 @@ for (const name of ['Специи', 'Смесь специй', 'Приправа
   nonSeedCondiments.add(matchingProductKey(name));
 }
 
-function substantialProductKeys(names: readonly string[]): Set<string> {
-  return new Set(names.map(matchingProductKey).filter(key => substantialKeys.has(key)));
+function substantialIngredientKeys(ingredients: RacionRecipe['ingredients']): Set<string> {
+  const sourceBase = /^(?:rice|buckwheat|potato|eggs?|beef|lamb|pork|chicken|turkey|salmon|herring|tuna|flour|pasta|oats|cottage_cheese)(?:_|$)/;
+  return new Set(ingredients.filter(item => substantialKeys.has(matchingProductKey(item.name)) || sourceBase.test(item.ingredientId)).map(item => matchingProductKey(item.name)));
 }
 
 // These groups control discovery/diversity and core-food requirements only.
@@ -48,15 +50,28 @@ function animalFamily(name: string): string | null {
   if (/говяд|beef/.test(value)) return 'beef';
   if (/свин|бекон|ветчин|pork|bacon/.test(value)) return 'pork';
   if (/баран|ягнят|lamb/.test(value)) return 'lamb';
-  if (/рыб|лосос|семг|минтай|треск|тунец|форел|скумбр|сельд|сардин|судак|хек|salmon|tuna|cod/.test(value)) return 'fish';
+  if (/рыб|лосос|семг|минта|треск|тунц|тунец|форел|скумбр|сельд|сардин|судак|хек|горбуш|палтус|камбал|salmon|tuna|cod/.test(value)) return 'fish';
   if (/кревет|кальмар|миди|краб|морепродукт|shrimp|prawn/.test(value)) return 'seafood';
-  if (/фарш|мяс|колбас|сосиск|утк|кролик/.test(value)) return 'meat';
+  if (/фарш|мяс|колбас|сосиск|утк|утин|крол|гусин|гуся/.test(value)) return 'meat';
   return null;
+}
+
+function ingredientAnimalFamily(item: RacionRecipe['ingredients'][number]): string | null {
+  const value = clean(item.name);
+  if (/бульон|соус|приправ|кубик|желатин|яйц|яич/.test(value)) return null;
+  const official = racionSourceProductName(item.ingredientId);
+  if (official && matchingProductKey(official) === matchingProductKey(item.name)) {
+    const id = item.ingredientId;
+    if (/^(?:salmon|trout|cod|pollock|hake|herring|mackerel|tuna|pike_perch|fish|carp|flounder|dorado|pangasius|capelin|perch_sea|saury|sprats)(?:_|$)/.test(id)) return 'fish';
+    if (/^(?:shrimp|prawn|king_prawns|squid|mussels|seafood|crab|scallops|oysters)(?:_|$)/.test(id)) return 'seafood';
+    for (const family of ['chicken', 'turkey', 'beef', 'pork', 'lamb']) if (id === family || id.startsWith(family + '_') || id.endsWith('_' + family)) return family;
+  }
+  return animalFamily(item.name);
 }
 
 function recipeFamily(recipe: RacionRecipe): string {
   const names = recipe.ingredients.map(item => item.name);
-  const animal = [...new Set(names.map(animalFamily).filter(Boolean))].sort();
+  const animal = [...new Set(recipe.ingredients.map(ingredientAnimalFamily).filter(Boolean))].sort();
   if (animal.length) return animal.join('+');
   const namesText = names.map(clean).join(' ');
   if (/яйц|яич|egg/.test(namesText)) return 'eggs';
@@ -95,16 +110,18 @@ export function rankRacionRecipes(recipes: readonly RacionRecipe[], stock: reado
     .filter(recipe => recipe.ingredients.every(item => isIngredientAllowed(item.name, profile)))
     .map(recipe => {
       const match = matchRacionIngredients(recipe.ingredients, stock, options);
-      const substantial = substantialProductKeys(recipe.ingredients.map(item => item.name));
-      const presentSubstantial = substantialProductKeys(match.available.map(item => item.name));
+      const substantial = substantialIngredientKeys(recipe.ingredients);
+      const presentSubstantial = substantialIngredientKeys([...match.available, ...match.compatible]);
       return { recipe, match, disliked: hasDislikedIngredient(recipe.ingredients.map(item => item.name), profile),
         missingSubstantialCount: substantial.size - presentSubstantial.size, hasSubstantial: substantial.size > 0,
         matchedSubstantialCount: presentSubstantial.size, family: recipeFamily(recipe),
-        missingAnimal: [...match.missing, ...match.unknown].some(item => animalFamily(item.name) !== null) };
+        missingAnimal: [...match.missing, ...match.unknown].some(item => ingredientAnimalFamily(item) !== null) };
     })
     .filter(item => item.match.meaningfulMatchedCount > 0
-      && item.match.coverage >= 0.6
-      && item.match.missingCount + item.match.unknownCount <= 2
+      && (item.match.coverage >= 0.6
+        || (item.missingSubstantialCount === 0 && item.match.coverage >= 0.5)
+        || (item.matchedSubstantialCount >= 2 && (item.matchedSubstantialCount * 3) / (item.matchedSubstantialCount * 3 + item.match.missingCount + item.match.unknownCount) >= 0.65))
+      && item.match.missingCount + item.match.unknownCount <= 3
       && !item.missingAnimal
       && (!item.hasSubstantial || item.matchedSubstantialCount > 0))
     .sort((a, b) => Number(a.disliked) - Number(b.disliked)

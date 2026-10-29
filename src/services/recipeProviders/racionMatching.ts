@@ -1,3 +1,4 @@
+import { classifyRacionIngredient } from './racionCompatibility';
 import { resolveIngredient } from '../../catalog/ingredients';
 import { isPantryStaple, type MatchingOptions } from '../../utils/matchingPolicy';
 import { matchingProductKey } from '../../utils/pantryProducts';
@@ -8,6 +9,8 @@ export interface RacionIngredientMatch {
   available: RacionRecipeIngredient[];
   /** Absent whitelist staples ignored by the current policy, never labelled present. */
   assumedPantry: RacionRecipeIngredient[];
+  compatible: RacionRecipeIngredient[];
+  compatibleCount: number;
   missing: RacionRecipeIngredient[];
   unknown: RacionRecipeIngredient[];
   /** Unique actual matches among requirements counted by the current policy. */
@@ -28,7 +31,8 @@ export function matchRacionIngredients(
   options: MatchingOptions = {},
 ): RacionIngredientMatch {
   const assumePantryStaples = options.assumePantryStaples !== false;
-  const stockKeys = new Set(availableNames.map(matchingProductKey).filter(Boolean));
+  const compatible: RacionRecipeIngredient[] = [];
+  const compatibleKeys = new Set<string>();
   const available: RacionRecipeIngredient[] = [];
   const assumedPantry: RacionRecipeIngredient[] = [];
   const missing: RacionRecipeIngredient[] = [];
@@ -42,11 +46,14 @@ export function matchRacionIngredients(
   for (const ingredient of ingredients) {
     const key = matchingProductKey(ingredient.name);
     const pantry = isPantryStaple(ingredient.name);
-    const present = Boolean(key) && stockKeys.has(key);
+    const classification = classifyRacionIngredient(ingredient, availableNames);
+    const present = classification === 'exact';
+    const possible = classification === 'compatible';
     const counted = !assumePantryStaples || !pantry;
     if (counted) countedKeys.add(key);
-    if (present) {
-      available.push(ingredient);
+    if (present || possible) {
+      if (present) available.push(ingredient);
+      else { compatible.push(ingredient); compatibleKeys.add(key); }
       if (counted) matchedKeys.add(key);
       if (!pantry) meaningfulKeys.add(key);
     } else if (assumePantryStaples && pantry) {
@@ -64,10 +71,10 @@ export function matchRacionIngredients(
   const matchedCount = matchedKeys.size;
   const meaningfulMatchedCount = meaningfulKeys.size;
   return {
-    available, assumedPantry, missing, unknown,
+    available, assumedPantry, compatible, compatibleCount: compatibleKeys.size, missing, unknown,
     matchedCount, totalCount, missingCount: missingKeys.size, unknownCount: unknownKeys.size,
     meaningfulMatchedCount,
     coverage: totalCount ? matchedCount / totalCount : 0,
-    fullyMatched: meaningfulMatchedCount > 0 && totalCount > 0 && matchedCount === totalCount,
+    fullyMatched: compatibleKeys.size === 0 && meaningfulMatchedCount > 0 && totalCount > 0 && matchedCount === totalCount,
   };
 }

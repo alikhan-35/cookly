@@ -116,4 +116,14 @@ describe('Racion discovery and confirmed ingredient ranking', () => {
     expect(result).toHaveLength(1);
     expect(result[0].family).toBe('eggs');
   });
+  it('requires fish in the source genitive name even when eggs and potatoes match', () => {
+    const meal = recipe('pollock', ['Филе минтая', 'Яйца', 'Картофель', 'Масло сливочное', 'Мука пшеничная', 'Молоко']);
+    expect(rankRacionRecipes([meal], ['Яйца', 'Картофель', 'Масло сливочное'], null, profile)).toEqual([]);
+  });
+
+  it('requires duck meat in source adjective names', () => {
+    const meal = recipe('duck', ['Утиная грудка', 'Рис', 'Картофель', 'Лук']);
+    expect(rankRacionRecipes([meal], ['Рис', 'Картофель', 'Лук'], null, profile)).toEqual([]);
+  });
+
 });
