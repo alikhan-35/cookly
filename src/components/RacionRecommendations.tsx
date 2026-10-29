@@ -49,11 +49,10 @@ export function RacionRecommendations({ stock, maxTime, source }: { stock: reado
   const loading = result.key !== key || result.loading;
   const error = result.key === key ? result.error : null;
   const matches = useMemo(() => rankRacionRecipes(loaded, stock, maxTime, profile, { assumePantryStaples }), [loaded, stockKey, maxTime, profileKey, assumePantryStaples]);
-  const remoteIds = matches.map(item => item.recipe.id).join(',');
   useEffect(() => {
-    if (loading) return;
-    trackEventOnce('recommendations_shown', `recommendations:${location.key}:${key}:${remoteIds}`, { search_source: source, total_recommendations: matches.length, ...(maxTime ? { cooking_time: maxTime } : {}) });
-  }, [consent, loading, location.key, key, remoteIds, source, matches.length, maxTime]);
+    if (!stock.length || (loading && matches.length === 0)) return;
+    trackEventOnce('recommendations_shown', `recommendations:${location.key}:${key}`, { search_source: source, total_recommendations: matches.length, ...(maxTime ? { cooking_time: maxTime } : {}) });
+  }, [consent, loading, location.key, key, source, matches.length, maxTime, stock.length]);
   const editTo = source === 'fridge' ? '/fridge' : '/#pantry';
   if (!stock.length) return <div className="empty-state"><h2>Что есть у вас дома?</h2><p>Добавьте продукты для подбора блюд.</p><Link className="button primary" to={editTo}>Добавить продукты <ArrowRight size={15}/></Link></div>;
   return <section className="racion-recommendations" aria-labelledby="racion-recommendations-title">
